@@ -1,0 +1,262 @@
+---
+title: "bbmo MAG filtration"
+author: "Patrick Gohl"
+date: "04/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+I loaded in the tables both of the bin and the information on which bins were excluded by metawrap and dRep. I did some reformating by getting the labels right for the exclusion table and by converting the contamination data to numeric and simultaneously changing them to North American style notation (. instead of , to indicate non-integer values)
+
+```{r loading}
+# loading packages
+library(ggplot2)
+library(ggExtra)
+library(dplyr)
+library(RColorBrewer)
+
+# loading in the MAGs from 2500 bp min binning
+Group1 <- read.table("Group1_MAGs.txt",  header=T,  row.names=1,  sep="\t")
+Group2 <- read.table("Group2_MAGs.txt",  header=T,  row.names=1,  sep="\t")
+Group3 <- read.table("Group3_MAGs.txt",  header=T,  row.names=1,  sep="\t")
+Group4 <- read.table("Group4_MAGs.txt",  header=T,  row.names=1,  sep="\t")
+
+# Loading the metawrap and drep bin exclusion info
+Group1Exclude <- read.table("Group1_bin_exclusion.txt",  header=T,  sep="\t")
+Group2Exclude <- read.table("Group2_bin_exclusion.txt",  header=T,  sep="\t")
+Group3Exclude <- read.table("Group3_bin_exclusion.txt",  header=T,  sep="\t")
+Group4Exclude <- read.table("Group4_bin_exclusion.txt",  header=T,  sep="\t")
+
+### adding format of bin names
+Group1Exclude <- paste("bin.G1." , Group1Exclude$bin.ids.excluded.in.total., sep="")
+Group2Exclude <- paste("bin.G2." , Group2Exclude$bin.ids.excluded.in.total., sep="")
+Group3Exclude <- paste("bin.G3." , Group3Exclude$bin.ids.excluded.in.total., sep="")
+Group4Exclude <- paste("bin.G4." , Group4Exclude$bin.ids.excluded.in.total., sep="")
+
+
+# reformating contamination as numeric and north american format ("." not ",")
+Group1[,2] <- gsub("," , ".", Group1[,2])
+Group1[,2] <- as.numeric(Group1[,2])
+Group2[,2] <- gsub("," , ".", Group2[,2])
+Group2[,2] <- as.numeric(Group2[,2])
+Group3[,2] <- gsub("," , ".", Group3[,2])
+Group3[,2] <- as.numeric(Group3[,2])
+Group4[,2] <- gsub("," , ".", Group4[,2])
+Group4[,2] <- as.numeric(Group4[,2])
+```
+
+I will explain the process with group 1 first and then proceed with the others
+
+First I selected only the bins that were near complete. I based the threshold of 90% on this paper: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4484387/ . Although I saw that many other papers used this value as well as the less tham 5% contamination threshold that I also trimmed the MAGs with. When it came to the contamination I didn't simply remove all contamination greater than 5%. Rather only bins when their contamination that could not be due to strain heterogeneity was greater than 5%
+
+```{r group1}
+
+
+##
+## Removing Genomes with less than 90% completeness
+##
+
+min90Gr1 <- subset(Group1, completeness > 90.0)
+
+```
+
+When it came to the contamination I didn't simply remove all contamination greater than 5%. Rather only bins when their contamination that could not be due to strain heterogeneity was greater than 5%
+
+
+```{r g1contam}
+##
+## Keeping only MAGs whose non-strain contamination is less than 5%
+##
+cut_comp_cont_Gr1 <- subset(min90Gr1, (contamination * (1-(strain.heterogeneity/100))) < 0.05)
+cut_comp_cont_Gr1 <- cut_comp_cont_Gr1 %>% mutate(non_strain.contamination = contamination * (1-(strain.heterogeneity/100)))
+
+# dim(cut_comp_cont_Gr1)
+# Group1 now only has 43 Mags left
+
+```
+
+
+Now I removed those bins that metawrap and dRep excluded and finally plotting the results
+
+```{r g1result}
+
+### Selected bins based on Q1, median,and Q3
+summary(cut_comp_cont_Gr1)
+cut_comp_cont_Gr1 <- cut_comp_cont_Gr1 %>% mutate(N50Bins = cut(N50, breaks = c(-Inf,41504,66761,148128,Inf)))
+
+###  removing bins excluded by metawrap or drep
+
+cut_comp_cont_Gr1$binlabels <- rownames(cut_comp_cont_Gr1)
+
+dim(cut_comp_cont_Gr1)
+cut_comp_cont_Gr1 <- cut_comp_cont_Gr1 %>%
+  filter(!(binlabels %in% Group1Exclude))
+
+###
+### plotting whats left
+###
+
+p <- ggplot(cut_comp_cont_Gr1, aes(x = contamination, y = N50, color = strain.heterogeneity, size = N50)) +
+  geom_point() + ggtitle("Group 1 near complete MAGs ")
+
+p
+
+```
+
+
+Now I repeat for the other groups
+
+#############
+#############
+############# GROUP2
+#############
+#############
+
+```{r group2}
+##
+## Removing Genomes with less than 90% completeness
+##
+
+min90Gr2 <- subset(Group2, completeness > 90.0)
+
+
+##
+## Keeping only MAGs whose non-strain contamination is less than 5%
+##
+cut_comp_cont_Gr2 <- subset(min90Gr2, (contamination * (1-(strain.heterogeneity/100))) < 0.05)
+cut_comp_cont_Gr2 <- cut_comp_cont_Gr2 %>% mutate(non_strain.contamination = contamination * (1-(strain.heterogeneity/100)))
+
+# dim(cut_comp_cont_Gr2)
+# Group2 now only has 23 Mags left
+
+
+### Selected N50 bins based on Q1, median,and Q3
+summary(cut_comp_cont_Gr2)
+cut_comp_cont_Gr2 <- cut_comp_cont_Gr2 %>% mutate(N50Bins = cut(N50, breaks = c(-Inf,31064,48519,75318,Inf)))
+
+###  removing bins excluded by metawrap or drep
+
+cut_comp_cont_Gr2$binlabels <- rownames(cut_comp_cont_Gr2)
+
+dim(cut_comp_cont_Gr2)
+cut_comp_cont_Gr2 <- cut_comp_cont_Gr2 %>%
+  filter(!(binlabels %in% Group2Exclude))
+
+###
+### plotting whats left
+###
+
+p <- ggplot(cut_comp_cont_Gr2, aes(x = contamination, y = N50, color = strain.heterogeneity, size = N50)) +
+  geom_point() + ggtitle("Group 2 near complete MAGs ")
+
+p
+
+```
+
+#############
+#############
+############# GROUP3
+#############
+#############
+
+```{r group3}
+##
+## Removing Genomes with less than 90% completeness
+##
+
+min90Gr3 <- subset(Group3, completeness > 90.0)
+
+
+##
+## Keeping only MAGs whose non-strain contamination is less than 5%
+##
+cut_comp_cont_Gr3 <- subset(min90Gr3, (contamination * (1-(strain.heterogeneity/100))) < 0.05)
+cut_comp_cont_Gr3 <- cut_comp_cont_Gr3 %>% mutate(non_strain.contamination = contamination * (1-(strain.heterogeneity/100)))
+
+# dim(cut_comp_cont_Gr3)
+# Group3 now only has 44 Mags left
+
+
+### Selected N50 bins based on Q1, median,and Q3
+summary(cut_comp_cont_Gr3)
+cut_comp_cont_Gr3 <- cut_comp_cont_Gr3 %>% mutate(N50Bins = cut(N50, breaks = c(-Inf,25894,61448,130684,Inf)))
+
+###  removing bins excluded by metawrap or drep
+
+cut_comp_cont_Gr3$binlabels <- rownames(cut_comp_cont_Gr3)
+
+dim(cut_comp_cont_Gr3)
+cut_comp_cont_Gr3 <- cut_comp_cont_Gr3 %>%
+  filter(!(binlabels %in% Group3Exclude))
+
+###
+### plotting whats left
+###
+
+p <- ggplot(cut_comp_cont_Gr3, aes(x = contamination, y = N50, color = strain.heterogeneity, size = N50)) +
+  geom_point() + ggtitle("Group 3 near complete MAGs ")
+
+p
+
+```
+
+#############
+#############
+############# GROUP4
+#############
+#############
+
+```{r group4}
+##
+## Removing Genomes with less than 90% completeness
+##
+
+min90Gr4 <- subset(Group4, completeness > 90.0)
+
+##
+## Keeping only MAGs whose non-strain contamination is less than 5%
+##
+cut_comp_cont_Gr4 <- subset(min90Gr4, (contamination * (1-(strain.heterogeneity/100))) < 0.05)
+cut_comp_cont_Gr4 <- cut_comp_cont_Gr4 %>% mutate(non_strain.contamination = contamination * (1-(strain.heterogeneity/100)))
+
+# dim(cut_comp_cont_Gr4)
+# Group4 now only has 35 Mags left
+
+
+### Selected N50 bins based on Q1, median,and Q3
+summary(cut_comp_cont_Gr4)
+cut_comp_cont_Gr4 <- cut_comp_cont_Gr4 %>% mutate(N50Bins = cut(N50, breaks = c(-Inf,40710,64170,113004,Inf)))
+
+###  removing bins excluded by metawrap or drep
+
+cut_comp_cont_Gr4$binlabels <- rownames(cut_comp_cont_Gr4)
+
+dim(cut_comp_cont_Gr4)
+cut_comp_cont_Gr4 <- cut_comp_cont_Gr4 %>%
+  filter(!(binlabels %in% Group4Exclude))
+
+###
+### plotting whats left
+###
+
+p <- ggplot(cut_comp_cont_Gr4, aes(x = contamination, y = N50, color = strain.heterogeneity, size = N50)) +
+  geom_point() + ggtitle("Group 4 near complete MAGs ")
+
+p
+
+```
+
+
+```{r savetables}
+# write.csv(cut_comp_cont_Gr1,"G1FilteredMAGs.csv", row.names = TRUE)
+# write.csv(cut_comp_cont_Gr2,"G2FilteredMAGs.csv", row.names = TRUE)
+# write.csv(cut_comp_cont_Gr3,"G3FilteredMAGs.csv", row.names = TRUE)
+# write.csv(cut_comp_cont_Gr4,"G4FilteredMAGs.csv", row.names = TRUE)
+
+```
+

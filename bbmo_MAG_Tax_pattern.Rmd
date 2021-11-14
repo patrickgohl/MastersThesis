@@ -1,0 +1,1067 @@
+---
+title: "bbmo MAG Taxonomy pattern"
+author: "Patrick Gohl"
+date: "07/10/2021"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Documents/Masters_Upf/ICM/bbmo_MAG_OTU_check")
+```
+The purpose of the following analysis of MAG and OTU tables obtained from the Blanes Observatory (12year) is to gather preliminary abundance information on our MAGs in order to pre-screen before running the definitive abundance analysis by mapping metagenome reads against a selection of MAGs. The goal is to retain ~20 MAGs for downstream abundance analysis. 
+
+The MAG information was obtained from the results of the MAG quality selection step outlined the following Rmd file: Documents/Masters_Upf/ICM/bbmo_MAG_selection/MAGselection.Rmd
+
+Once the data is loaded I create columns with the GTDB.taxonomy info for each taxonomic level
+
+```{r loading_data}
+
+library("stringr")
+library("dplyr")
+library("ggplot2")
+library("dygraphs")
+library("xts")
+library("slider")
+library("htmlwidgets")
+
+
+Group1 <- read.csv("../bbmo_MAG_selection/input/G1FilteredMAGs.csv",  header=T,  row.names=1)
+Group2 <- read.csv("../bbmo_MAG_selection/input/G2FilteredMAGs.csv",  header=T,  row.names=1)
+Group3 <- read.csv("../bbmo_MAG_selection/input/G3FilteredMAGs.csv",  header=T,  row.names=1)
+Group4 <- read.csv("../bbmo_MAG_selection/input/G4FilteredMAGs.csv",  header=T,  row.names=1)
+
+
+```
+
+Here I am splitting up the GTDB taxonomic info into its own column
+for each taxonomic unit (Domain,Phylum ....)
+
+I will do this for each of the four Groups
+Group1
+```{r Group1}
+## The tax info is taken to be everything between our __ and ;
+Group1$Domain <- str_match(Group1$GTDB.taxonomy, "d__.[^;]*")
+## In some cases where the sample was unnassigned the field was left blank and so I needed to prevent it from retaining the next sections start
+Group1$Domain <- gsub("d__", "", Group1$Domain)
+Group1$Domain <- gsub(";p__", NA, Group1$Domain)
+Group1$Phylum <- str_match(Group1$GTDB.taxonomy, "p__.[^;]*")
+Group1$Phylum <- gsub("p__", "", Group1$Phylum)
+Group1$Phylum <- gsub(";c__", NA, Group1$Phylum)
+Group1$Class <- str_match(Group1$GTDB.taxonomy, "c__.[^;]*")
+Group1$Class <- gsub("c__", "", Group1$Class)
+Group1$Class <- gsub(";o__", NA, Group1$Class)
+Group1$Order <- str_match(Group1$GTDB.taxonomy, "o__.[^;]*")
+Group1$Order <- gsub("o__", "", Group1$Order)
+Group1$Order <- gsub(";f__", NA, Group1$Order)
+Group1$Family <- str_match(Group1$GTDB.taxonomy, "f__.[^;]*")
+Group1$Family <- gsub("f__", "", Group1$Family)
+Group1$Family <- gsub(";g__", NA, Group1$Family)
+Group1$Genus <- str_match(Group1$GTDB.taxonomy, "g__.[^;]*")
+Group1$Genus <- gsub("g__", "", Group1$Genus)
+Group1$Genus <- gsub(";s__", NA, Group1$Genus)
+Group1$Species <- str_match(Group1$GTDB.taxonomy, "s__.[^;]*")
+Group1$Species <- gsub("s__", "", Group1$Species)
+
+
+```
+
+Group2
+```{r Group2}
+Group2$Domain <- str_match(Group2$GTDB.taxonomy, "d__.[^;]*")
+Group2$Domain <- gsub("d__", "", Group2$Domain)
+Group2$Domain <- gsub(";p__", NA, Group2$Domain)
+Group2$Phylum <- str_match(Group2$GTDB.taxonomy, "p__.[^;]*")
+Group2$Phylum <- gsub("p__", "", Group2$Phylum)
+Group2$Phylum <- gsub(";c__", NA, Group2$Phylum)
+Group2$Class <- str_match(Group2$GTDB.taxonomy, "c__.[^;]*")
+Group2$Class <- gsub("c__", "", Group2$Class)
+Group2$Class <- gsub(";o__", NA, Group2$Class)
+Group2$Order <- str_match(Group2$GTDB.taxonomy, "o__.[^;]*")
+Group2$Order <- gsub("o__", "", Group2$Order)
+Group2$Order <- gsub(";f__", NA, Group2$Order)
+Group2$Family <- str_match(Group2$GTDB.taxonomy, "f__.[^;]*")
+Group2$Family <- gsub("f__", "", Group2$Family)
+Group2$Family <- gsub(";g__", NA, Group2$Family)
+Group2$Genus <- str_match(Group2$GTDB.taxonomy, "g__.[^;]*")
+Group2$Genus <- gsub("g__", "", Group2$Genus)
+Group2$Genus <- gsub(";s__", NA, Group2$Genus)
+Group2$Species <- str_match(Group2$GTDB.taxonomy, "s__.[^;]*")
+Group2$Species <- gsub("s__", "", Group2$Species)
+
+
+```
+
+Group3
+```{r Group3}
+Group3$Domain <- str_match(Group3$GTDB.taxonomy, "d__.[^;]*")
+Group3$Domain <- gsub("d__", "", Group3$Domain)
+Group3$Domain <- gsub(";p__", NA, Group3$Domain)
+Group3$Phylum <- str_match(Group3$GTDB.taxonomy, "p__.[^;]*")
+Group3$Phylum <- gsub("p__", "", Group3$Phylum)
+Group3$Phylum <- gsub(";c__", NA, Group3$Phylum)
+Group3$Class <- str_match(Group3$GTDB.taxonomy, "c__.[^;]*")
+Group3$Class <- gsub("c__", "", Group3$Class)
+Group3$Class <- gsub(";o__", NA, Group3$Class)
+Group3$Order <- str_match(Group3$GTDB.taxonomy, "o__.[^;]*")
+Group3$Order <- gsub("o__", "", Group3$Order)
+Group3$Order <- gsub(";f__", NA, Group3$Order)
+Group3$Family <- str_match(Group3$GTDB.taxonomy, "f__.[^;]*")
+Group3$Family <- gsub("f__", "", Group3$Family)
+Group3$Family <- gsub(";g__", NA, Group3$Family)
+Group3$Genus <- str_match(Group3$GTDB.taxonomy, "g__.[^;]*")
+Group3$Genus <- gsub("g__", "", Group3$Genus)
+Group3$Genus <- gsub(";s__", NA, Group3$Genus)
+Group3$Species <- str_match(Group3$GTDB.taxonomy, "s__.[^;]*")
+Group3$Species <- gsub("s__", "", Group3$Species)
+
+
+```
+
+Group4
+```{r Group4}
+Group4$Domain <- str_match(Group4$GTDB.taxonomy, "d__.[^;]*")
+Group4$Domain <- gsub("d__", "", Group4$Domain)
+Group4$Domain <- gsub(";p__", NA, Group4$Domain)
+Group4$Phylum <- str_match(Group4$GTDB.taxonomy, "p__.[^;]*")
+Group4$Phylum <- gsub("p__", "", Group4$Phylum)
+Group4$Phylum <- gsub(";c__", NA, Group4$Phylum)
+Group4$Class <- str_match(Group4$GTDB.taxonomy, "c__.[^;]*")
+Group4$Class <- gsub("c__", "", Group4$Class)
+Group4$Class <- gsub(";o__", NA, Group4$Class)
+Group4$Order <- str_match(Group4$GTDB.taxonomy, "o__.[^;]*")
+Group4$Order <- gsub("o__", "", Group4$Order)
+Group4$Order <- gsub(";f__", NA, Group4$Order)
+Group4$Family <- str_match(Group4$GTDB.taxonomy, "f__.[^;]*")
+Group4$Family <- gsub("f__", "", Group4$Family)
+Group4$Family <- gsub(";g__", NA, Group4$Family)
+Group4$Genus <- str_match(Group4$GTDB.taxonomy, "g__.[^;]*")
+Group4$Genus <- gsub("g__", "", Group4$Genus)
+Group4$Genus <- gsub(";s__", NA, Group4$Genus)
+Group4$Species <- str_match(Group4$GTDB.taxonomy, "s__.[^;]*")
+Group4$Species <- gsub("s__", "", Group4$Species)
+
+
+```
+
+
+Here I am looking at how the presence of various Classes shift accross the Groups
+The final results are presented in the following table 
+```{r binary_Class}
+
+G1Class <- data.frame(unclass(table(Group1$Class)))
+colnames(G1Class) <- "Group1"
+G2Class <- data.frame(unclass(table(Group2$Class)))
+colnames(G2Class) <- "Group2"
+G3Class <- data.frame(unclass(table(Group3$Class)))
+colnames(G3Class) <- "Group3"
+G4Class <- data.frame(unclass(table(Group4$Class)))
+colnames(G4Class) <- "Group4"
+
+
+ClassPresence <- transform(merge(G1Class,G2Class,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+ClassPresence <- transform(merge(ClassPresence,G3Class,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+ClassPresence <- transform(merge(ClassPresence,G4Class,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+ClassPresence[is.na(ClassPresence)] <- 0
+
+## turning into binary (presence or not)
+
+binaryClass <- ClassPresence
+
+binaryClass <- binaryClass %>% mutate_if(is.numeric, ~1 * (. != 0))
+
+binaryClass$total <- rowSums(binaryClass)
+
+binaryClass <- tibble::rownames_to_column(binaryClass, "Class")
+
+binaryClass[order(-binaryClass$total), ]
+
+
+```
+
+The previous code is repeated for the Genus level and the results shown in the subsequent table
+
+
+```{r full_taxpath_Genus}
+G1Genus <- data.frame(unclass(table(Group1$GTDB.taxonomy)))
+colnames(G1Genus) <- "Group1"
+G1Genus <- tibble::rownames_to_column(G1Genus, "taxpath")
+G1Genus$taxpath <- gsub(";s.[^;]*", "", G1Genus$taxpath)
+G1Genus <- G1Genus[complete.cases(G1Genus), ]
+G1Genus <- unique(G1Genus$taxpath)
+G1Genus <- as.data.frame(G1Genus)
+G1Genus$Group1 <- as.integer(1)
+rownames(G1Genus) <- G1Genus[,1]
+G1Genus <- G1Genus[ -c(1) ]
+
+G2Genus <- data.frame(unclass(table(Group2$GTDB.taxonomy)))
+colnames(G2Genus) <- "Group2"
+G2Genus <- tibble::rownames_to_column(G2Genus, "taxpath")
+G2Genus$taxpath <- gsub(";s.[^;]*", "", G2Genus$taxpath)
+G2Genus <- G2Genus[complete.cases(G2Genus), ]
+G2Genus <- unique(G2Genus$taxpath)
+G2Genus <- as.data.frame(G2Genus)
+G2Genus$Group2 <- as.integer(1)
+rownames(G2Genus) <- G2Genus[,1]
+G2Genus <- G2Genus[ -c(1) ]
+
+G3Genus <- data.frame(unclass(table(Group3$GTDB.taxonomy)))
+colnames(G3Genus) <- "Group3"
+G3Genus <- tibble::rownames_to_column(G3Genus, "taxpath")
+G3Genus$taxpath <- gsub(";s.[^;]*", "", G3Genus$taxpath)
+G3Genus <- G3Genus[complete.cases(G3Genus), ]
+G3Genus <- unique(G3Genus$taxpath)
+G3Genus <- as.data.frame(G3Genus)
+G3Genus$Group3 <- as.integer(1)
+rownames(G3Genus) <- G3Genus[,1]
+G3Genus <- G3Genus[ -c(1) ]
+
+G4Genus <- data.frame(unclass(table(Group4$GTDB.taxonomy)))
+colnames(G4Genus) <- "Group4"
+G4Genus <- tibble::rownames_to_column(G4Genus, "taxpath")
+G4Genus$taxpath <- gsub(";s.[^;]*", "", G4Genus$taxpath)
+G4Genus <- G4Genus[complete.cases(G4Genus), ]
+G4Genus <- unique(G4Genus$taxpath)
+G4Genus <- as.data.frame(G4Genus)
+G4Genus$Group4 <- as.integer(1)
+rownames(G4Genus) <- G4Genus[,1]
+G4Genus <- G4Genus[ -c(1) ]
+
+GenusPresence <- transform(merge(G1Genus,G2Genus,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+GenusPresence <- transform(merge(GenusPresence,G3Genus,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+GenusPresence <- transform(merge(GenusPresence,G4Genus,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+
+
+GenusPresence[is.na(GenusPresence)] <- 0
+
+## turning into binary (presence or not)
+
+full_binaryGenus <- GenusPresence
+full_binaryGenus <- full_binaryGenus %>% mutate_if(is.numeric, ~1 * (. != 0))
+full_binaryGenus$total <- rowSums(full_binaryGenus)
+full_binaryGenus <- tibble::rownames_to_column(full_binaryGenus, "taxpath")
+full_binaryGenus$Genus <- str_match(full_binaryGenus$taxpath, "g__.[^;]*")
+full_binaryGenus$Genus <- gsub("g__", "", full_binaryGenus$Genus)
+full_binaryGenus$Genus <- gsub(";s__", NA, full_binaryGenus$Genus)
+full_binaryGenus <- full_binaryGenus[complete.cases(full_binaryGenus), ]
+full_binaryGenus[order(-full_binaryGenus$total), ]
+
+
+```
+
+```{r binary_Genus}
+#####
+#####  This binary Genus section is for downstream analysis
+#####
+
+# Turning the Genus frequency info into a df 
+G1Genus <- data.frame(unclass(table(Group1$Genus)))
+colnames(G1Genus) <- "Group1"
+G2Genus <- data.frame(unclass(table(Group2$Genus)))
+colnames(G2Genus) <- "Group2"
+G3Genus <- data.frame(unclass(table(Group3$Genus)))
+colnames(G3Genus) <- "Group3"
+G4Genus <- data.frame(unclass(table(Group4$Genus)))
+colnames(G4Genus) <- "Group4"
+
+# I am merging all of the Groups together into one combining the rows where they refer to the same Genus
+GenusPresence <- transform(merge(G1Genus,G2Genus,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+GenusPresence <- transform(merge(GenusPresence,G3Genus,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+GenusPresence <- transform(merge(GenusPresence,G4Genus,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+GenusPresence[is.na(GenusPresence)] <- 0
+
+## turning into binary (presence or not)
+
+binaryGenus <- GenusPresence
+binaryGenus <- binaryGenus %>% mutate_if(is.numeric, ~1 * (. != 0))
+
+binaryGenus$total <- rowSums(binaryGenus)
+
+binaryGenus <- tibble::rownames_to_column(binaryGenus, "Genus")
+```
+
+
+
+At the Species level with output table
+
+```{r full_taxpath_Species}
+
+G1Species <- data.frame(unclass(table(Group1$GTDB.taxonomy)))
+colnames(G1Species) <- "Group1"
+G2Species <- data.frame(unclass(table(Group2$GTDB.taxonomy)))
+colnames(G2Species) <- "Group2"
+G3Species <- data.frame(unclass(table(Group3$GTDB.taxonomy)))
+colnames(G3Species) <- "Group3"
+G4Species <- data.frame(unclass(table(Group4$GTDB.taxonomy)))
+colnames(G4Species) <- "Group4"
+
+
+SpeciesPresence <- transform(merge(G1Species,G2Species,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+SpeciesPresence <- transform(merge(SpeciesPresence,G3Species,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+SpeciesPresence <- transform(merge(SpeciesPresence,G4Species,by=0,all=TRUE), row.names=Row.names, Row.names=NULL)
+SpeciesPresence[is.na(SpeciesPresence)] <- 0
+
+## turning into binary (presence or not)
+
+full_binarySpecies <- SpeciesPresence
+
+full_binarySpecies <- full_binarySpecies %>% mutate_if(is.numeric, ~1 * (. != 0))
+
+full_binarySpecies$total <- rowSums(full_binarySpecies)
+
+full_binarySpecies <- tibble::rownames_to_column(full_binarySpecies, "Species")
+
+full_binarySpecies$short_Species <- str_match(full_binarySpecies$Species, "s__.[^;]*")
+full_binarySpecies$short_Species <- gsub("s__", "", full_binarySpecies$short_Species)
+
+full_binarySpecies <- full_binarySpecies[complete.cases(full_binarySpecies), ]
+
+full_binarySpecies[order(-full_binarySpecies$total), ]
+
+```
+
+
+Now I am going to see if any of the Genera we found in the MAGs are also present in the OTU tables. 
+Here the most specific I can get to is the Genus level. This is what I will start with. 
+
+
+```{r OTU_MAG}
+
+df <- read.table("input/bbmo.2009.2020.mtags.genus.tsv", header= TRUE, sep="\t")
+# filtering out all of the Eukaryotic info 
+df <- df %>% 
+  filter(!str_detect(taxpath, 'Eukaryota'))
+# taxpath info becomes the row name
+rownames(df) <- df[,1]
+df <- subset(df, select = -c(taxpath) )
+# getting the total amount of reads per OTU
+df$Total <- rowSums(df)
+df <- df[order(-df$Total), ]
+
+# In this initial run I will select only the top 150 OTUs to compare to my MAGs
+df <- df[1:150,]
+
+```
+
+Here I am formatting the new df as well as finding the Genera that are shared by the MAG and OTU tables. 
+
+This step could benefit from manual curation some of the names may be slightly different but be refering to the same genus an example of this is the Candidatus prefix used in the OTU table. 
+
+With this method I found 4 Genera that were shared between the MAG table and the Genus info on the top 150 OTUs. Of those 150 original Genera only 90 appear in the table below as either present (TRUE) or not (FALSE) because I removed any Genera that was designated as "uncultured" or "unknown"
+```{r find_Genus}
+
+df <- tibble::rownames_to_column(df, "taxpath")
+# I want to find the info on the Genus that each OTU belonged to and store that in a column
+df$Genus <- str_match(df$taxpath, "genus__.[^;]*")
+df$Genus <- gsub("genus__", "", df$Genus)
+df$Genus <- gsub(";species__", NA, df$Genus)
+
+# I am filtering out any unknows as well as prefixes
+df <- df %>% 
+  filter(!str_detect(Genus, 'unknown'))
+df <- df %>% 
+  filter(!str_detect(Genus, 'uncultured'))
+df$Genus <- gsub("Candidatus", "", df$Genus)
+
+# Here is where I check each OTU (Genus it belongs to) and see if it is within the MAG table I created previously.
+df$FOUND <- df$Genus
+for(i in 1:nrow(df)) {       # for-loop over columns
+  df[i , 144] <- df[i , 143] %in% binaryGenus$Genus
+}
+
+table(df$FOUND)
+
+INMAGS <- df %>% 
+  filter(str_detect(FOUND, "TRUE"))
+
+
+
+```
+
+Now I will see if I can find any sort of pattern in the four genera that were selected. The two graphs prodced are displayed, both the unsmothened and smothened graph. Interestingly, there is an observable pattern in 2 of the Genera. In the Windowed Graph the shadowed regions are months of June - September. Ascidiaceihabitans Seems to prefer these months whereas Nitrosopumilus prefers the colder months. 
+
+```{r searching_seasonality}
+
+
+INMAGS <- t(INMAGS)
+# Naming the columns after their respective Genus
+colnames(INMAGS) <- INMAGS["Genus",]
+row.names.remove <- c("taxpath", "Total", "Genus", "FOUND")
+INMAGS <- INMAGS[!(row.names(INMAGS) %in% row.names.remove), ]
+
+# Changing the sampling labels to Date format 
+INMAGS <- as.data.frame(INMAGS)
+INMAGS <- tibble::rownames_to_column(INMAGS, "dd_mm_yy")
+INMAGS$dd_mm_yy <- gsub(".bins", "", INMAGS$dd_mm_yy)
+INMAGS$dd_mm_yy <- gsub("BL","", INMAGS$dd_mm_yy)
+INMAGS$dd_mm_yy <- gsub("^(.{2})(.*)$",         
+                       "\\1_\\2",
+                       INMAGS$dd_mm_yy)
+INMAGS$dd_mm_yy <- gsub("^(.{5})(.*)$",         
+                       "\\1_\\2",
+                       INMAGS$dd_mm_yy)
+INMAGS$dd_mm_yy <- as.Date(INMAGS$dd_mm_yy, "%y_%m_%d")
+
+# looking at the results over 12 years
+don=xts( x=INMAGS[,-1], order.by=INMAGS$dd_mm_yy)
+p <- dygraph(don)
+p
+
+# To get a better Idea of the pattern I am adding a sliding window to smooth things out.
+WINDOWINMAGS <- INMAGS
+
+WINDOWINMAGS <- data.frame(lapply(WINDOWINMAGS[,2:5],as.numeric))
+WINDOWINMAGS$dd_mm_yy <- INMAGS$dd_mm_yy
+
+WINDOWINMAGS[,1] <- slide_dbl(WINDOWINMAGS[,1], ~mean(.x), .before = 1, .after = 1)
+WINDOWINMAGS[,2] <- slide_dbl(WINDOWINMAGS[,2], ~mean(.x), .before = 1, .after = 1)
+WINDOWINMAGS[,3] <- slide_dbl(WINDOWINMAGS[,3], ~mean(.x), .before = 1, .after = 1)
+WINDOWINMAGS[,4] <- slide_dbl(WINDOWINMAGS[,4], ~mean(.x), .before = 1, .after = 1)
+
+
+don=xts( x=WINDOWINMAGS[,-5], order.by=WINDOWINMAGS$dd_mm_yy)
+p <- dygraph(don, )
+
+
+# I picked the 4 hottest months of the year based on this record (I need the group specifics)
+# https://www.seatemperature.org/mediterranean-sea
+
+
+p <- dygraph(don, main = "Genus Presence") %>% 
+  dyShading(from = "2009-06-01", to = "2009-9-30") %>%
+  dyShading(from = "2010-06-01", to = "2010-9-30") %>%
+  dyShading(from = "2011-06-01", to = "2011-9-30") %>%
+  dyShading(from = "2012-06-01", to = "2012-9-30") %>%
+  dyShading(from = "2013-06-01", to = "2013-9-30") %>%
+  dyShading(from = "2014-06-01", to = "2014-9-30") %>%
+  dyShading(from = "2015-06-01", to = "2015-9-30") %>%
+  dyShading(from = "2016-06-01", to = "2016-9-30") %>%
+  dyShading(from = "2017-06-01", to = "2017-9-30") %>%
+  dyShading(from = "2018-06-01", to = "2018-9-30") %>%
+  dyShading(from = "2019-06-01", to = "2019-9-30") %>%
+  dyShading(from = "2020-06-01", to = "2020-9-30") 
+
+
+p
+saveWidget(p, file=paste0( getwd(), "/GenusPresenceWidget.html"))
+```
+
+I am now repeating the code above except that here I will be considering all of the OTUs, not just the top 150.
+With this change I get 15 Genera that are shared. 
+
+```{r no_limit_OTU}
+df <- read.table("input/bbmo.2009.2020.mtags.genus.tsv", header= TRUE, sep="\t")
+df <- df %>% 
+  filter(!str_detect(taxpath, 'Eukaryota'))
+
+rownames(df) <- df[,1]
+df <- subset(df, select = -c(taxpath) )
+df$Total <- rowSums(df)
+
+df <- df[order(-df$Total), ]
+
+
+df <- tibble::rownames_to_column(df, "taxpath")
+df$Genus <- str_match(df$taxpath, "genus__.[^;]*")
+df$Genus <- gsub("genus__", "", df$Genus)
+df$Genus <- gsub(";species__", NA, df$Genus)
+
+df <- df %>% 
+  filter(!str_detect(Genus, 'unknown'))
+df <- df %>% 
+  filter(!str_detect(Genus, 'uncultured'))
+
+df$Genus <- gsub("Candidatus", "", df$Genus)
+
+df$FOUND <- df$Genus
+for(i in 1:nrow(df)) {       # for-loop over columns
+  df[i , 144] <- df[i , 143] %in% binaryGenus$Genus
+}
+
+table(df$FOUND)
+
+test_temp <- df %>% 
+  filter(str_detect(FOUND, "TRUE"))
+
+test_temp[,142:143]
+
+test_temp <- test_temp[5:15,]
+
+
+####
+#### NOW lets look at the pattern
+####
+
+
+test_temp <- t(test_temp)
+
+colnames(test_temp) <- test_temp["Genus",]
+row.names.remove <- c("taxpath", "Total", "Genus", "FOUND")
+test_temp <- test_temp[!(row.names(test_temp) %in% row.names.remove), ]
+
+test_temp <- as.data.frame(test_temp)
+test_temp <- tibble::rownames_to_column(test_temp, "dd_mm_yy")
+test_temp$dd_mm_yy <- gsub(".bins", "", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("BL","", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{2})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{5})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- as.Date(test_temp$dd_mm_yy, "%y_%m_%d")
+
+
+xdon=xts( x=test_temp[,-1], order.by=test_temp$dd_mm_yy)
+xp <- dygraph(xdon)
+
+
+WINDOWtest_temp <- test_temp
+
+WINDOWtest_temp <- data.frame(lapply(WINDOWtest_temp[,2:12],as.numeric))
+WINDOWtest_temp$dd_mm_yy <- test_temp$dd_mm_yy
+
+
+WINDOWtest_temp[,1] <- slide_dbl(WINDOWtest_temp[,1], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,2] <- slide_dbl(WINDOWtest_temp[,2], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,3] <- slide_dbl(WINDOWtest_temp[,3], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,4] <- slide_dbl(WINDOWtest_temp[,4], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,5] <- slide_dbl(WINDOWtest_temp[,5], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,6] <- slide_dbl(WINDOWtest_temp[,6], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,7] <- slide_dbl(WINDOWtest_temp[,7], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,8] <- slide_dbl(WINDOWtest_temp[,8], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,9] <- slide_dbl(WINDOWtest_temp[,9], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,10] <- slide_dbl(WINDOWtest_temp[,10], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,11] <- slide_dbl(WINDOWtest_temp[,11], ~mean(.x), .before = 1, .after = 1)
+xdon=xts( x=WINDOWtest_temp[,-12], order.by=WINDOWtest_temp$dd_mm_yy)
+xp <- dygraph(xdon, )
+
+
+# I picked the 4 hottest months of the year based on this record (I need the group specifics)
+# https://www.seatemperature.org/mediterranean-sea
+
+
+xp <- dygraph(xdon, main = "Genus Presence") %>% 
+  dyShading(from = "2009-06-01", to = "2009-9-30") %>%
+  dyShading(from = "2010-06-01", to = "2010-9-30") %>%
+  dyShading(from = "2011-06-01", to = "2011-9-30") %>%
+  dyShading(from = "2012-06-01", to = "2012-9-30") %>%
+  dyShading(from = "2013-06-01", to = "2013-9-30") %>%
+  dyShading(from = "2014-06-01", to = "2014-9-30") %>%
+  dyShading(from = "2015-06-01", to = "2015-9-30") %>%
+  dyShading(from = "2016-06-01", to = "2016-9-30") %>%
+  dyShading(from = "2017-06-01", to = "2017-9-30") %>%
+  dyShading(from = "2018-06-01", to = "2018-9-30") %>%
+  dyShading(from = "2019-06-01", to = "2019-9-30") %>%
+  dyShading(from = "2020-06-01", to = "2020-9-30") 
+
+
+xp
+
+
+
+```
+
+
+Now I will look at the Class level
+
+What we see is that the four least abundant classes (Nitrososphaeria, Dehalococcoidia, Planctomycetes, Campylobacteria) tend to prefer the colder months. The three most abundant classes dont have a very clear trend however Verrucomicrobiae which sits somewhat in the middle looks to prefer the warm months somewhat. 
+
+```{r OTU_at_Phylum}
+
+df <- read.table("input/bbmo.2009.2020.mtags.class.tsv", header= TRUE, sep="\t")
+df <- df %>% 
+  filter(!str_detect(taxpath, 'Eukaryota'))
+rownames(df) <- df[,1]
+df <- subset(df, select = -c(taxpath) )
+df$Total <- rowSums(df)
+
+df <- df[order(-df$Total), ]
+
+
+df <- tibble::rownames_to_column(df, "taxpath")
+df$class <- str_match(df$taxpath, "class__.[^;]*")
+df$class <- gsub("class__", "", df$class)
+df$class <- gsub(";genus__", NA, df$class)
+
+df <- df %>% 
+  filter(!str_detect(class, 'unknown'))
+df <- df %>% 
+  filter(!str_detect(class, 'uncultured'))
+
+df$class <- gsub("Candidatus", "", df$class)
+
+df$FOUND <- df$class
+for(i in 1:nrow(df)) {       # for-loop over columns
+  df[i , 144] <- df[i , 143] %in% binaryClass$Class
+}
+
+table(df$FOUND)
+
+test_temp <- df %>% 
+  filter(str_detect(FOUND, "TRUE"))
+
+test_temp[,142:143]
+
+
+
+####
+#### NOW lets look at the pattern
+####
+
+
+test_temp <- t(test_temp)
+
+colnames(test_temp) <- test_temp["class",]
+row.names.remove <- c("taxpath", "Total", "class", "FOUND")
+test_temp <- test_temp[!(row.names(test_temp) %in% row.names.remove), ]
+
+test_temp <- as.data.frame(test_temp)
+test_temp <- tibble::rownames_to_column(test_temp, "dd_mm_yy")
+test_temp$dd_mm_yy <- gsub(".bins", "", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("BL","", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{2})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{5})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- as.Date(test_temp$dd_mm_yy, "%y_%m_%d")
+
+
+xdon=xts( x=test_temp[,-1], order.by=test_temp$dd_mm_yy)
+xp <- dygraph(xdon)
+
+
+WINDOWtest_temp <- test_temp
+
+WINDOWtest_temp <- data.frame(lapply(WINDOWtest_temp[,2:9],as.numeric))
+WINDOWtest_temp$dd_mm_yy <- test_temp$dd_mm_yy
+
+
+WINDOWtest_temp[,1] <- slide_dbl(WINDOWtest_temp[,1], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,2] <- slide_dbl(WINDOWtest_temp[,2], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,3] <- slide_dbl(WINDOWtest_temp[,3], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,4] <- slide_dbl(WINDOWtest_temp[,4], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,5] <- slide_dbl(WINDOWtest_temp[,5], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,6] <- slide_dbl(WINDOWtest_temp[,6], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,7] <- slide_dbl(WINDOWtest_temp[,7], ~mean(.x), .before = 1, .after = 1)
+WINDOWtest_temp[,8] <- slide_dbl(WINDOWtest_temp[,8], ~mean(.x), .before = 1, .after = 1)
+
+
+xdon=xts( x=WINDOWtest_temp[,-11], order.by=WINDOWtest_temp$dd_mm_yy)
+xp <- dygraph(xdon, )
+
+
+# I picked the 4 hottest months of the year based on this record (I need the group specifics)
+# https://www.seatemperature.org/mediterranean-sea
+
+
+xp <- dygraph(xdon, main = "class Presence") %>% 
+  dyShading(from = "2009-06-01", to = "2009-9-30") %>%
+  dyShading(from = "2010-06-01", to = "2010-9-30") %>%
+  dyShading(from = "2011-06-01", to = "2011-9-30") %>%
+  dyShading(from = "2012-06-01", to = "2012-9-30") %>%
+  dyShading(from = "2013-06-01", to = "2013-9-30") %>%
+  dyShading(from = "2014-06-01", to = "2014-9-30") %>%
+  dyShading(from = "2015-06-01", to = "2015-9-30") %>%
+  dyShading(from = "2016-06-01", to = "2016-9-30") %>%
+  dyShading(from = "2017-06-01", to = "2017-9-30") %>%
+  dyShading(from = "2018-06-01", to = "2018-9-30") %>%
+  dyShading(from = "2019-06-01", to = "2019-9-30") %>%
+  dyShading(from = "2020-06-01", to = "2020-9-30") 
+
+
+xp
+
+```
+The locations of some of these interesting Genera:
+
+Ascidiaceihabitans bin.G2.143 or bin.G3.171 
+
+Nitrosopumilus bin.G3.122 
+
+Brevundimonas bin.G2.126
+
+Sedimenibacterium bin.G4.177 or bin.G3.128 or bin.G2.187 or bin.G1.202
+
+
+
+```{r  save_tables}
+
+#write.csv(binaryGenus[order(-binaryGenus$total), ],"Results/binaryGenusMAGs.csv", row.names = TRUE)
+#write.csv(binaryClass[order(-binaryClass$total), ],"Results/binaryClassMAGs.csv", row.names = TRUE)
+#write.csv(binarySpecies[order(-binarySpecies$total), ],"Results/binarySpeciesMAGs.csv", row.names = TRUE)
+
+```
+
+The following is an analysis on how the patterns exhibited by the genera can be attributed to otu's found within and to what extent it is a single species or multiple that are causing the rise and fall.
+```{r Genus_composition}
+
+####
+### Getting proportions at the Domain Stage
+####
+
+df <- read.table("input/bbmo.2009.2020.mtags.otu.tsv", header= TRUE, sep="\t")
+
+df <- df %>% 
+  filter(!str_detect(taxpath, 'Eukaryota'))
+rownames(df) <- df[,1]
+df <- subset(df, select = -c(taxpath) )
+df$Total <- rowSums(df)
+dfProportion <- df %>%
+  mutate_if(is.numeric, funs(./sum(.)))
+dfProportion  <- mutate_if(dfProportion, is.numeric, ~ . * 100)
+
+
+
+dfProportion <- tibble::rownames_to_column(dfProportion, "taxpath")
+dfProportion$genus <- str_match(dfProportion$taxpath, "genus__.[^;]*")
+dfProportion$genus <- gsub("genus__", "", dfProportion$genus)
+dfProportion$genus <- gsub(";species__", NA, dfProportion$genus)
+
+dfAscidiaceihabitans <- dfProportion %>% 
+  filter(str_detect(taxpath, 'Ascidiaceihabitans'))
+dfAscidiaceihabitans$otu <- str_match(dfAscidiaceihabitans$taxpath, "otu__.[^;]*")
+dfAscidiaceihabitans$otu <- gsub("otu__silva_138_complink_cons_", "", dfAscidiaceihabitans$otu)
+
+
+dfAscidiaceihabitans <- dfAscidiaceihabitans[order(-dfAscidiaceihabitans$Total), ]
+
+
+test_temp <- dfAscidiaceihabitans
+
+
+
+
+test_temp <- t(test_temp)
+
+colnames(test_temp) <- test_temp["otu",]
+row.names.remove <- c("taxpath", "Total", "genus", "FOUND","otu")
+test_temp <- test_temp[!(row.names(test_temp) %in% row.names.remove), ]
+
+test_temp <- as.data.frame(test_temp)
+test_temp <- tibble::rownames_to_column(test_temp, "dd_mm_yy")
+test_temp$dd_mm_yy <- gsub(".bins", "", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("BL","", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{2})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{5})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- as.Date(test_temp$dd_mm_yy, "%y_%m_%d")
+
+
+xpropdon=xts( x=test_temp[,-1], order.by=test_temp$dd_mm_yy)
+xpropp <- dygraph(xpropdon)
+
+xpropp
+
+WINDOWtest_temp <- test_temp
+
+
+WINDOWtest_temp <- data.frame(lapply(WINDOWtest_temp[,2:17],as.numeric))
+WINDOWtest_temp$dd_mm_yy <- test_temp$dd_mm_yy
+
+
+for(i in 1:(ncol(WINDOWtest_temp)-1)) {       # for-loop over columns
+  WINDOWtest_temp[,i] <- slide_dbl(WINDOWtest_temp[,i], ~mean(.x), .before = 1, .after = 1)
+}
+
+
+xpropdon=xts( x=WINDOWtest_temp[,-(17)], order.by=WINDOWtest_temp$dd_mm_yy)
+xpropp <- dygraph(xpropdon, )
+
+
+# I picked the 4 hottest months of the year based on this record (I need the group specifics)
+# https://www.seatemperature.org/mediterranean-sea
+
+
+xpropp <- dygraph(xpropdon, main = "Ascidiaceihabitans otu proportion", ylab = "% of Prokaryote total", xlab = "Date of sampling") %>% 
+  dyShading(from = "2009-06-01", to = "2009-9-30") %>%
+  dyShading(from = "2010-06-01", to = "2010-9-30") %>%
+  dyShading(from = "2011-06-01", to = "2011-9-30") %>%
+  dyShading(from = "2012-06-01", to = "2012-9-30") %>%
+  dyShading(from = "2013-06-01", to = "2013-9-30") %>%
+  dyShading(from = "2014-06-01", to = "2014-9-30") %>%
+  dyShading(from = "2015-06-01", to = "2015-9-30") %>%
+  dyShading(from = "2016-06-01", to = "2016-9-30") %>%
+  dyShading(from = "2017-06-01", to = "2017-9-30") %>%
+  dyShading(from = "2018-06-01", to = "2018-9-30") %>%
+  dyShading(from = "2019-06-01", to = "2019-9-30") %>%
+  dyShading(from = "2020-06-01", to = "2020-9-30") %>%
+  dyLegend(width = 1000)
+
+
+xpropp
+
+
+```
+
+
+
+Nitrosopumilus is the next Genus to conduct this analysis on
+
+```{r Nitrospopumilus}
+
+####
+### Getting proportions at the Domain Stage
+####
+
+dfNitrosopumilus <- dfProportion %>% 
+  filter(str_detect(taxpath, 'Nitrosopumilus'))
+dfNitrosopumilus$otu <- str_match(dfNitrosopumilus$taxpath, "otu__.[^;]*")
+dfNitrosopumilus$otu <- gsub("otu__silva_138_complink_cons_", "", dfNitrosopumilus$otu)
+
+
+dfNitrosopumilus <- dfNitrosopumilus[order(-dfNitrosopumilus$Total), ]
+
+
+test_temp <- dfNitrosopumilus
+
+
+
+
+test_temp <- t(test_temp)
+
+colnames(test_temp) <- test_temp["otu",]
+row.names.remove <- c("taxpath", "Total", "genus", "FOUND","otu")
+test_temp <- test_temp[!(row.names(test_temp) %in% row.names.remove), ]
+
+test_temp <- as.data.frame(test_temp)
+test_temp <- tibble::rownames_to_column(test_temp, "dd_mm_yy")
+test_temp$dd_mm_yy <- gsub(".bins", "", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("BL","", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{2})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{5})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- as.Date(test_temp$dd_mm_yy, "%y_%m_%d")
+
+
+xpropdon=xts( x=test_temp[,-1], order.by=test_temp$dd_mm_yy)
+xpropp <- dygraph(xpropdon) %>%
+  dyLegend(width = 1500)
+
+xpropp
+
+WINDOWtest_temp <- test_temp
+
+WINDOWtest_temp <- data.frame(lapply(WINDOWtest_temp[,2:106],as.numeric))
+WINDOWtest_temp$dd_mm_yy <- test_temp$dd_mm_yy
+
+for(i in 1:(ncol(WINDOWtest_temp)-1)) {       # for-loop over columns
+  WINDOWtest_temp[,i] <- slide_dbl(WINDOWtest_temp[,i], ~mean(.x), .before = 1, .after = 1)
+}
+
+
+
+xpropdon=xts( x=WINDOWtest_temp[,-(17:ncol(WINDOWtest_temp))], order.by=WINDOWtest_temp$dd_mm_yy)
+xpropp <- dygraph(xpropdon, )
+
+
+# I picked the 4 hottest months of the year based on this record (I need the group specifics)
+# https://www.seatemperature.org/mediterranean-sea
+
+
+xpropp <- dygraph(xpropdon, main = "Nitrosopumilus otu proportion", ylab = "% of Prokaryote total", xlab = "Date of sampling") %>% 
+  dyShading(from = "2009-06-01", to = "2009-9-30") %>%
+  dyShading(from = "2010-06-01", to = "2010-9-30") %>%
+  dyShading(from = "2011-06-01", to = "2011-9-30") %>%
+  dyShading(from = "2012-06-01", to = "2012-9-30") %>%
+  dyShading(from = "2013-06-01", to = "2013-9-30") %>%
+  dyShading(from = "2014-06-01", to = "2014-9-30") %>%
+  dyShading(from = "2015-06-01", to = "2015-9-30") %>%
+  dyShading(from = "2016-06-01", to = "2016-9-30") %>%
+  dyShading(from = "2017-06-01", to = "2017-9-30") %>%
+  dyShading(from = "2018-06-01", to = "2018-9-30") %>%
+  dyShading(from = "2019-06-01", to = "2019-9-30") %>%
+  dyShading(from = "2020-06-01", to = "2020-9-30") %>%
+  dyLegend(width = 1000)
+
+
+xpropp
+
+
+
+
+```
+
+
+Now the same with Brevundimonas
+
+```{r Brevundimonas}
+####
+### Getting proportions at the Domain Stage
+####
+
+dfBrevundimonas <- dfProportion %>% 
+  filter(str_detect(taxpath, 'Brevundimonas'))
+dfBrevundimonas$otu <- str_match(dfBrevundimonas$taxpath, "otu__.[^;]*")
+dfBrevundimonas$otu <- gsub("otu__silva_138_complink_cons_", "", dfBrevundimonas$otu)
+
+
+dfBrevundimonas <- dfBrevundimonas[order(-dfBrevundimonas$Total), ]
+
+
+test_temp <- dfBrevundimonas
+
+
+
+
+test_temp <- t(test_temp)
+
+colnames(test_temp) <- test_temp["otu",]
+row.names.remove <- c("taxpath", "Total", "genus", "FOUND","otu")
+test_temp <- test_temp[!(row.names(test_temp) %in% row.names.remove), ]
+
+test_temp <- as.data.frame(test_temp)
+test_temp <- tibble::rownames_to_column(test_temp, "dd_mm_yy")
+test_temp$dd_mm_yy <- gsub(".bins", "", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("BL","", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{2})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{5})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- as.Date(test_temp$dd_mm_yy, "%y_%m_%d")
+
+
+xpropdon=xts( x=test_temp[,-1], order.by=test_temp$dd_mm_yy)
+xpropp <- dygraph(xpropdon) %>%
+  dyLegend(width = 1500)
+
+xpropp
+
+WINDOWtest_temp <- test_temp
+
+WINDOWtest_temp <- data.frame(lapply(WINDOWtest_temp[,2:ncol(WINDOWtest_temp)],as.numeric))
+WINDOWtest_temp$dd_mm_yy <- test_temp$dd_mm_yy
+
+for(i in 1:(ncol(WINDOWtest_temp)-1)) {       # for-loop over columns
+  WINDOWtest_temp[,i] <- slide_dbl(WINDOWtest_temp[,i], ~mean(.x), .before = 1, .after = 1)
+}
+
+
+
+xpropdon=xts( x=WINDOWtest_temp[,-(17:ncol(WINDOWtest_temp))], order.by=WINDOWtest_temp$dd_mm_yy)
+xpropp <- dygraph(xpropdon, )
+
+
+# I picked the 4 hottest months of the year based on this record (I need the group specifics)
+# https://www.seatemperature.org/mediterranean-sea
+
+
+xpropp <- dygraph(xpropdon, main = "Brevundimonas otu proportion", ylab = "% of Prokaryote total", xlab = "Date of sampling") %>% 
+  dyShading(from = "2009-06-01", to = "2009-9-30") %>%
+  dyShading(from = "2010-06-01", to = "2010-9-30") %>%
+  dyShading(from = "2011-06-01", to = "2011-9-30") %>%
+  dyShading(from = "2012-06-01", to = "2012-9-30") %>%
+  dyShading(from = "2013-06-01", to = "2013-9-30") %>%
+  dyShading(from = "2014-06-01", to = "2014-9-30") %>%
+  dyShading(from = "2015-06-01", to = "2015-9-30") %>%
+  dyShading(from = "2016-06-01", to = "2016-9-30") %>%
+  dyShading(from = "2017-06-01", to = "2017-9-30") %>%
+  dyShading(from = "2018-06-01", to = "2018-9-30") %>%
+  dyShading(from = "2019-06-01", to = "2019-9-30") %>%
+  dyShading(from = "2020-06-01", to = "2020-9-30") %>%
+  dyLegend(width = 1000)
+
+
+xpropp
+
+```
+
+And Polycuclovorans
+
+```{r Polycyclovorans}
+####
+### Getting proportions at the Domain Stage
+####
+
+dfPolycyclovorans <- dfProportion %>% 
+  filter(str_detect(taxpath, 'Polycyclovorans'))
+dfPolycyclovorans$otu <- str_match(dfPolycyclovorans$taxpath, "otu__.[^;]*")
+dfPolycyclovorans$otu <- gsub("otu__silva_138_complink_cons_", "", dfPolycyclovorans$otu)
+
+
+dfPolycyclovorans <- dfPolycyclovorans[order(-dfPolycyclovorans$Total), ]
+
+
+test_temp <- dfPolycyclovorans
+
+
+
+
+test_temp <- t(test_temp)
+
+colnames(test_temp) <- test_temp["otu",]
+row.names.remove <- c("taxpath", "Total", "genus", "FOUND","otu")
+test_temp <- test_temp[!(row.names(test_temp) %in% row.names.remove), ]
+
+test_temp <- as.data.frame(test_temp)
+test_temp <- tibble::rownames_to_column(test_temp, "dd_mm_yy")
+test_temp$dd_mm_yy <- gsub(".bins", "", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("BL","", test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{2})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- gsub("^(.{5})(.*)$",         
+                       "\\1_\\2",
+                       test_temp$dd_mm_yy)
+test_temp$dd_mm_yy <- as.Date(test_temp$dd_mm_yy, "%y_%m_%d")
+
+
+xpropdon=xts( x=test_temp[,-1], order.by=test_temp$dd_mm_yy)
+xpropp <- dygraph(xpropdon) %>%
+  dyLegend(width = 1500)
+
+xpropp
+
+WINDOWtest_temp <- test_temp
+
+WINDOWtest_temp <- data.frame(lapply(WINDOWtest_temp[,2:ncol(WINDOWtest_temp)],as.numeric))
+WINDOWtest_temp$dd_mm_yy <- test_temp$dd_mm_yy
+
+for(i in 1:(ncol(WINDOWtest_temp)-1)) {       # for-loop over columns
+  WINDOWtest_temp[,i] <- slide_dbl(WINDOWtest_temp[,i], ~mean(.x), .before = 1, .after = 1)
+}
+
+
+
+xpropdon=xts( x=WINDOWtest_temp[,-(16:ncol(WINDOWtest_temp))], order.by=WINDOWtest_temp$dd_mm_yy)
+xpropp <- dygraph(xpropdon, )
+
+
+# I picked the 4 hottest months of the year based on this record (I need the group specifics)
+# https://www.seatemperature.org/mediterranean-sea
+
+
+xpropp <- dygraph(xpropdon, main = "Polycyclovorans otu proportion", ylab = "% of Prokaryote total", xlab = "Date of sampling") %>% 
+  dyShading(from = "2009-06-01", to = "2009-9-30") %>%
+  dyShading(from = "2010-06-01", to = "2010-9-30") %>%
+  dyShading(from = "2011-06-01", to = "2011-9-30") %>%
+  dyShading(from = "2012-06-01", to = "2012-9-30") %>%
+  dyShading(from = "2013-06-01", to = "2013-9-30") %>%
+  dyShading(from = "2014-06-01", to = "2014-9-30") %>%
+  dyShading(from = "2015-06-01", to = "2015-9-30") %>%
+  dyShading(from = "2016-06-01", to = "2016-9-30") %>%
+  dyShading(from = "2017-06-01", to = "2017-9-30") %>%
+  dyShading(from = "2018-06-01", to = "2018-9-30") %>%
+  dyShading(from = "2019-06-01", to = "2019-9-30") %>%
+  dyShading(from = "2020-06-01", to = "2020-9-30") %>%
+  dyLegend(width = 1000)
+
+
+xpropp
+
+```
+
+
+
+```

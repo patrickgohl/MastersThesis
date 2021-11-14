@@ -1,0 +1,150 @@
+---
+title: "bbmo_SNP_Fst"
+author: "Patrick Gohl"
+date: "07/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Documents/Masters_Upf/ICM/bbmo_SNP")
+```
+
+
+
+loading in the fst distance matrices
+```{r FST}
+
+library(ape)
+library(dendextend)
+library(ggplot2)
+library(reshape2)
+library(gridExtra)
+
+
+
+bin.G1.202 <- read.table("../bbmo_Fst/vcf_files/bin.G1.202.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G2.126 <- read.table("../bbmo_Fst/vcf_files/bin.G2.126.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G2.143 <- read.table("../bbmo_Fst/vcf_files/bin.G2.143.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G3.122 <- read.table("../bbmo_Fst/vcf_files/bin.G3.122.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G4.593 <- read.table("../bbmo_Fst/vcf_files/bin.G4.593.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bl0902.s23.ctg000345l <- read.table("../bbmo_Fst/vcf_files/bl0902.s23.ctg000345l.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bl0908.s1032.ctg001132l <- read.table("../bbmo_Fst/vcf_files/bl0908.s1032.ctg001132l.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+
+pogenom <- list(bin.G1.202,bin.G2.126,bin.G2.143,bin.G3.122,bin.G4.593,bl0902.s23.ctg000345l,bl0908.s1032.ctg001132l)
+
+
+```
+
+
+
+```{r SNP}
+SNP_bin.G1.202 <- read.table("SNPtally/bin.G1.202.txt",  header=F,  row.names=1)
+SNP_bin.G2.126 <- read.table("SNPtally/bin.G2.126.txt",  header=F,  row.names=1)
+SNP_bin.G2.143 <- read.table("SNPtally/bin.G2.143.txt",  header=F,  row.names=1)
+SNP_bin.G3.122 <- read.table("SNPtally/bin.G3.122.txt",  header=F,  row.names=1)
+SNP_bin.G4.593 <- read.table("SNPtally/bin.G4.593.txt",  header=F,  row.names=1)
+SNP_bl0902.s23.ctg000345l <- read.table("SNPtally/bl0902.s23.ctg000345l.txt",  header=F,  row.names=1)
+SNP_bl0908.s1032.ctg001132l <- read.table("SNPtally/bl0908.s1032.ctg001132l.txt",  header=F,  row.names=1)
+
+SNP_bin.G1.202$sample <- row.names(SNP_bin.G1.202)
+SNP_bin.G2.126$sample <- row.names(SNP_bin.G2.126)
+SNP_bin.G2.143$sample <- row.names(SNP_bin.G2.143)
+SNP_bin.G3.122$sample <- row.names(SNP_bin.G3.122)
+SNP_bin.G4.593$sample <- row.names(SNP_bin.G4.593)
+SNP_bl0902.s23.ctg000345l$sample <- row.names(SNP_bl0902.s23.ctg000345l)
+SNP_bl0908.s1032.ctg001132l$sample <- row.names(SNP_bl0908.s1032.ctg001132l)
+
+
+anvio <- list(SNP_bin.G1.202,SNP_bin.G2.126,SNP_bin.G2.143,SNP_bin.G3.122,SNP_bin.G4.593,SNP_bl0902.s23.ctg000345l,SNP_bl0908.s1032.ctg001132l)
+
+
+magnames <-c("bin.G1.202","bin.G2.126","bin.G2.143","bin.G3.122","bin.G4.593","bl0902.s23.ctg000345l","bl0908.s1032.ctg001132l")
+
+colnames(as.data.frame(anvio[1]))
+
+```
+
+
+```{r cluster}
+runthrough = 1
+
+for (mag in pogenom){
+  
+  mag[is.na(mag)] <- 0
+  
+  mag <- as.matrix(mag)
+  
+  diag(mag) <- NA
+  
+  dend <- as.dendrogram(hclust(as.dist(mag)), cex = 0.2)
+  
+  inRange <- function (x, min, max) {
+      return ((x-min)*(x-max) <= 0);
+  }
+  labelCol <- function(x) {
+    if (is.leaf(x)) {
+      ## fetch label
+      label <- attr(x, "label") 
+      month <- as.integer(substr(label, start = 6, stop = 7))
+      ## set label color to red for A and B, to blue otherwise
+      attr(x, "nodePar") <- list(lab.col=ifelse(inRange(month, 6, 8), "red", ifelse(inRange(month, 9, 11), "yellow",ifelse(inRange(month, 3, 5), "green","blue"))))
+    }
+    return(x)
+  }
+  labels(dend) <- substr(labels(dend), start = 1, stop = 9)
+  d <- dendrapply(dend, labelCol)
+  ggd1 <- as.ggdend(d)
+  g1 <- ggplot(ggd1, horiz = TRUE, theme = NULL) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"))
+  
+  nam <- paste(magnames[runthrough], "_g1", sep = "")
+  assign(nam, g1)
+
+  SNPtally <- as.data.frame(anvio[runthrough])
+  colnames(SNPtally) <- "count"
+  
+  number = 1
+  
+  N <- 140
+  new_order = data.frame(sample = character(N), count = numeric(N))
+  colnames(new_order) <- c("sample", "count")
+  number <- 1
+  for(sample in labels(dend)){
+    new_order[number,1] <- sample
+    new_order[number,2] <- SNPtally[sample,1]
+    number = number + 1 
+  }
+  row.names(new_order) <- new_order$sample
+  new_order$sample <- factor(new_order$sample, levels = new_order$sample)
+  
+  
+  g2 <- ggplot(new_order, aes(x =sample, y=count)) +
+    geom_bar(,stat="identity", position ="dodge") + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+ 
+    coord_flip()
+  
+  nam <- paste(magnames[runthrough], "_g2", sep = "")
+  assign(nam, g2)
+  runthrough = runthrough + 1
+}
+
+```
+
+```{r}
+
+
+grid.arrange(bin.G1.202_g1, bin.G1.202_g2, ncol=2)
+grid.arrange(bin.G2.126_g1, bin.G2.126_g2, ncol=2)
+grid.arrange(bin.G2.143_g1, bin.G2.143_g2, ncol=2)
+grid.arrange(bin.G3.122_g1, bin.G3.122_g2, ncol=2)
+grid.arrange(bin.G4.593_g1, bin.G4.593_g2, ncol=2)
+grid.arrange(bl0902.s23.ctg000345l_g1, bl0902.s23.ctg000345l_g2, ncol=2)
+grid.arrange(bl0908.s1032.ctg001132l_g1, bl0908.s1032.ctg001132l_g2, ncol=2)
+
+
+
+```

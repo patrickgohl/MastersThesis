@@ -1,0 +1,60 @@
+---
+title: "bbmo_MAG_OTU_Abundance"
+author: "Patrick Gohl"
+date: "08/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Loading in data filtering out the Eukaryotes and then selecting the top 150 abundant results 
+
+```{r loading_data}
+library("stringr")
+library("dplyr")
+library("ggplot2")
+
+df <- read.table("input/bbmo.2009.2020.mtags.genus.tsv", header= TRUE, sep="\t")
+df <- df %>% 
+  filter(!str_detect(taxpath, 'Eukaryota'))
+
+rownames(df) <- df[,1]
+df <- subset(df, select = -c(taxpath) )
+df$Total <- rowSums(df)
+
+df <- df[order(-df$Total), ]
+
+df <- df[1:150,]
+
+```
+
+```{r find_Genus}
+
+df <- tibble::rownames_to_column(df, "taxpath")
+df$Genus <- str_match(df$taxpath, "genus__.[^;]*")
+df$Genus <- gsub("genus__", "", df$Genus)
+df$Genus <- gsub(";species__", "unknown", df$Genus)
+
+
+df <- df %>% 
+  filter(!str_detect(Genus, 'unknown'))
+df <- df %>% 
+  filter(!str_detect(Genus, 'uncultured'))
+
+MAGgenera <- binaryGenus$Genus
+
+df$in_MAG <- df$Genus %in% binaryGenus$Genus
+
+if ("Paracoccus" in MAGgenera){
+  print("TRUE")
+}
+
+
+```
+
+for(i in 1:ncol(binaryClass)) {       # for-loop over columns
+  binaryClass[ , i] <- as.integer(gsub( "[0]" , 1, binaryClass[ , i]))
+}

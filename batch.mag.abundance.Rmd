@@ -1,0 +1,200 @@
+---
+title: "MAG_Abundance"
+author: "Patrick Gohl"
+date: "22/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance")
+```
+
+For this analysis I am pulling in the mapped read count for the mapping I ran of all reads from the 140 metagenomes across the twelve years (4 were omitted due to clustering outside of the four main groups during the hierarchical clustering priot to assembly) onto several mags.I normalize the length of the MAG and the depth of the metagenome by dividing read counts by first the size of the MAG in kilobases and then by the size of each metagenome in Gigabases at its timepoint.
+
+```{r}
+library("stringr")
+library("dplyr")
+library("ggplot2")
+library("dygraphs")
+library("xts")
+library("slider")
+library("htmlwidgets")
+library("stringi")
+
+df <- read.table("bin.G2.143.abundance.tsv", header= FALSE, sep=" ")
+# the metagenome sizes were provided by lidia
+metagenomeGB <- read.table("BBMO.v3_metag_size_Gb.tsv", header = TRUE, sep = "\t")
+# MAG sizes I just parsed for bp in bash I am converting into Kb here
+magBasecount <- read.table("mag_base_count.tsv", header = TRUE , sep = "\t")
+magBasecount$Kbases <- magBasecount$bp / 1000
+
+```
+
+First I did MAG bin.G2.143 which is an Ascidiaceihabitans MAG. The reads were filtered thrice, at 90%, 95%, or 99% identity with 80% coverage for each. Here I am loading in those results reformatting and then simply graphing the timeline. Next I ran a batch of the following three MAGs for which I have abundance info. These are Sediminibacterium for bin.G1.202, Brevundimonas for bin.G2.126 and (family Thalassarchaeaceae genus MGIIb-O2) for the PacBio s23.ctg000345l from bl0902. More mags will be added as they become available  Here I am only presenting the analysis of the 95% id because we determined to go forward with those only.
+
+
+
+```{r 95id_only}
+
+# for the df0,1,2,5 the 90 and 99 id counts must be removed
+df0 <- read.table("bin.G1.202.abundance.tsv", header= FALSE, sep="")
+df0 <- df0[141:280,]
+df1 <- read.table("bin.G2.126.abundance.tsv", header= FALSE, sep="")
+df1 <- df1[141:280,]
+df2 <- read.table("bin.G2.143.abundance.tsv", header= FALSE, sep="")
+df2 <- df2[141:280,]
+df3 <- read.table("bin.G3.122.abundance.tsv", header= FALSE, sep="")
+df4 <- read.table("bin.G4.593.abundance.tsv", header= FALSE, sep="")
+df5 <- read.table("bl0902.s23.ctg000345l.abundance.tsv", header= FALSE, sep="")
+df5 <- df5[141:280,]
+df6 <- read.table("bl0908.s1032.ctg0011321.abundance.tsv", header= FALSE, sep="")
+
+
+MAGnames <-c("bin.G1.202","bin.G2.126","bin.G2.143","bin.G3.122","bin.G4.593","bl0902.s23.ctg000345l","bl0908.s1032.ctg0011321")
+
+MAGsran <- c(list(df0),list(df1),list(df2),list(df3),list(df4),list(df5),list(df6))
+
+i <- 1
+
+for (df in MAGsran){
+  
+  colnames(df) <- c("date","count")
+  df$date = stri_pad_left(df$date, 6, "0")
+
+  rownames(df) <- df[,1]
+  
+  
+  # the calculation of the RPKG here 
+  df$"RPKG" <- ((df$"count" / magBasecount[i,3]) / metagenomeGB$Sample..Gb)
+  
+  # reformating the sampling date information so that dygraph can read it
+  df$date <- gsub("^(.{2})(.*)$",         
+                          "\\1_\\2",
+                          df$date)
+  df$date <- gsub("^(.{5})(.*)$",         
+                          "\\1_\\2",
+                          df$date)
+  df$date <- as.character(df$date)
+  df$date <- as.Date(df$date, "%y_%m_%d")
+  
+  ### saving the RPKG values
+  nam <- paste(MAGnames[i], "_RPKG", sep = "")
+  RPKG <- df[-c(2)]
+  assign(nam, RPKG)
+  ### in case i want to log convert
+  df[,-1] <- log(df[,-1])
+  
+  don=xts( x=df[,-(1:4)], order.by=df$date)
+  p <- dygraph(don)
+  
+  #p
+  
+  # I am once again going to smoothen out the reads (one read before and one read after)
+  WindowedReads <- df
+  
+  WindowedReads <- data.frame(lapply(WindowedReads[,2:3],as.numeric))
+  WindowedReads$date <- df$date
+  
+  WindowedReads[,1] <- slide_dbl(WindowedReads[,1], ~mean(.x), .before = 1, .after = 1)
+  WindowedReads[,2] <- slide_dbl(WindowedReads[,2], ~mean(.x), .before = 1, .after = 1)
+  
+  don=xts( x=WindowedReads[,2], order.by=WindowedReads$date)
+  p <- dygraph(don, )
+  
+  
+  # I picked the 4 hottest months of the year based on this record (I need the group specifics)
+  # https://www.seatemperature.org/mediterranean-sea
+  
+  
+  p <- dygraph(don, main = paste(MAGnames[i], "relative abundance", sep=" ") , xlab = "Date of sampling") %>% 
+    dyAxis("y", label = "log(RPKG)", valueRange = c(10, -10)) %>%
+    dyShading(from = "2009-06-01", to = "2009-9-30") %>%
+    dyShading(from = "2010-06-01", to = "2010-9-30") %>%
+    dyShading(from = "2011-06-01", to = "2011-9-30") %>%
+    dyShading(from = "2012-06-01", to = "2012-9-30") %>%
+    dyShading(from = "2013-06-01", to = "2013-9-30") %>%
+    dyShading(from = "2014-06-01", to = "2014-9-30") %>%
+    dyShading(from = "2015-06-01", to = "2015-9-30") %>%
+    dyShading(from = "2016-06-01", to = "2016-9-30") %>%
+    dyShading(from = "2017-06-01", to = "2017-9-30") %>%
+    dyShading(from = "2018-06-01", to = "2018-9-30") %>%
+    dyShading(from = "2019-06-01", to = "2019-9-30") %>%
+    dyShading(from = "2020-06-01", to = "2020-9-30") 
+  
+  
+  
+  nam <- paste(MAGnames[i], "_dygraph", sep = "")
+  assign(nam, p)
+  
+  i <- i + 1
+}
+
+bin.G2.143_dygraph
+bin.G1.202_dygraph
+bin.G2.126_dygraph
+bl0902.s23.ctg000345l_dygraph
+bl0908.s1032.ctg0011321_dygraph
+bin.G3.122_dygraph 
+bin.G4.593_dygraph
+
+```
+
+Next I am looking at the Average coverage as well as the breadth of coverage for all of the Mags that I have so far.
+
+
+
+```{r coverage}
+
+
+# metagenome-average coverage-standard deviation of coverage-breadth of coverage 
+
+df0 <- read.table("/Users/patrick/Documents/Masters_Upf/ICM/bbmo_coverage/bin.G1.202.coverage.tsv", sep = "")
+df1 <- read.table("/Users/patrick/Documents/Masters_Upf/ICM/bbmo_coverage/bin.G2.126.coverage.tsv", sep = "")
+df2 <- read.table("/Users/patrick/Documents/Masters_Upf/ICM/bbmo_coverage/bin.G2.143.coverage.tsv", sep = "")
+df3 <- read.table("/Users/patrick/Documents/Masters_Upf/ICM/bbmo_coverage/bin.G3.122.coverage.tsv", sep = "")
+df4 <- read.table("/Users/patrick/Documents/Masters_Upf/ICM/bbmo_coverage/bin.G4.593.coverage.tsv", sep = "")
+df5 <- read.table("/Users/patrick/Documents/Masters_Upf/ICM/bbmo_coverage/bl0902.s23.ctg0003451.coverage.tsv", sep = "")
+df6 <- read.table("/Users/patrick/Documents/Masters_Upf/ICM/bbmo_coverage/bl0908.s1032.ctg0011321.coverage.tsv", sep = "")
+
+MAGnames <-c("bin.G1.202","bin.G2.126","bin.G2.143","bin.G3.122","bin.G4.593","bl0902.s23.ctg0003451","bl0908.s1032.ctg0011321")
+MAGRPKG <-list(bin.G1.202_RPKG,bin.G2.126_RPKG,bin.G2.143_RPKG,bin.G3.122_RPKG,bin.G4.593_RPKG,bl0902.s23.ctg000345l_RPKG,bl0908.s1032.ctg0011321_RPKG)
+
+MAGsran <- c(list(df0),list(df1),list(df2),list(df3),list(df4),list(df5),list(df6))
+
+i <- 1
+for (df in MAGsran){
+  colnames(df) <- c("metagenome", "Average", "SDeviation", "Breadth")
+  RPKG <- as.data.frame(MAGRPKG[i])
+  df$RPKG <- RPKG$RPKG
+  df$metagenome = stri_pad_left(df$metagenome, 6, "0")
+  
+  df$metagenome <- gsub("^(.{2})(.*)$",         
+                          "\\1_\\2",
+                          df$metagenome)
+  df$metagenome <- gsub("^(.{5})(.*)$",         
+                          "\\1_\\2",
+                          df$metagenome)
+  df$metagenome <- as.character(df$metagenome)
+  df$metagenome <- as.Date(df$metagenome, "%y_%m_%d")
+
+  
+  AVmax <- max(df$Average)
+  p <- ggplot() + 
+    geom_line(mapping = aes(x = df$metagenome, y = df$Average), size = 0.5, color = "red") +
+    geom_line(mapping = aes(x = df$metagenome, y = df$Breadth*AVmax), size = 0.5, color = "blue") + 
+    scale_x_date(name = "month") +
+    scale_y_continuous(name = "Average coverage", 
+      sec.axis = sec_axis(~./AVmax, name = "Breadth coverage %", 
+        labels = function(b) { paste0(round(b * 100, 0), "%")})) + theme_bw() +
+    theme(
+        axis.title.y = element_text(color = "red"),
+        axis.title.y.right = element_text(color = "blue"))+
+      ggtitle(MAGnames[i])
+  print(p)
+  i <- i +1 
+}
+
+```
+
+```{r}
