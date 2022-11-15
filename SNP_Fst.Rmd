@@ -20,9 +20,11 @@ library(dendextend)
 library(ggplot2)
 library(reshape2)
 library(gridExtra)
+library(openxlsx)
+library(stringr)
+library(cowplot)
 
-
-
+## Loading in the fst disance matrices
 bin.G1.202 <- read.table("../bbmo_Fst/vcf_files/bin.G1.202.95id.c10.s4.fst.txt",  header=T,  row.names=1)
 bin.G2.126 <- read.table("../bbmo_Fst/vcf_files/bin.G2.126.95id.c10.s4.fst.txt",  header=T,  row.names=1)
 bin.G2.143 <- read.table("../bbmo_Fst/vcf_files/bin.G2.143.95id.c10.s4.fst.txt",  header=T,  row.names=1)
@@ -31,7 +33,21 @@ bin.G4.593 <- read.table("../bbmo_Fst/vcf_files/bin.G4.593.95id.c10.s4.fst.txt",
 bl0902.s23.ctg000345l <- read.table("../bbmo_Fst/vcf_files/bl0902.s23.ctg000345l.95id.c10.s4.fst.txt",  header=T,  row.names=1)
 bl0908.s1032.ctg001132l <- read.table("../bbmo_Fst/vcf_files/bl0908.s1032.ctg001132l.95id.c10.s4.fst.txt",  header=T,  row.names=1)
 
+# creating a list of all of the fst distance matrices
 pogenom <- list(bin.G1.202,bin.G2.126,bin.G2.143,bin.G3.122,bin.G4.593,bl0902.s23.ctg000345l,bl0908.s1032.ctg001132l)
+
+
+# loading in the RPKG tabels calculated in the "bbmo_MAG_abundance/batch.mag.abundance.Rmd" file
+bin.G1.202_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G1.202_RPKG.csv")
+bin.G2.126_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G2.126_RPKG.csv")
+bin.G2.143_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G2.143_RPKG.csv")
+bin.G3.122_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G3.122_RPKG.csv")
+bin.G4.593_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G4.593_RPKG.csv")
+bl0902.s23.ctg000345l_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0902.s23.ctg000345l_RPKG.csv")
+bl0908.s1032.ctg001132l_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0908.s1032.ctg0011321_RPKG.csv")
+
+# creating a list containing all of the RPKG tables
+RPKGlist <-list(bin.G1.202_RPKG,bin.G2.126_RPKG,bin.G2.143_RPKG,bin.G3.122_RPKG,bin.G4.593_RPKG,bl0902.s23.ctg000345l_RPKG,bl0908.s1032.ctg001132l_RPKG)
 
 
 ```
@@ -39,6 +55,8 @@ pogenom <- list(bin.G1.202,bin.G2.126,bin.G2.143,bin.G3.122,bin.G4.593,bl0902.s2
 
 
 ```{r SNP}
+
+# Loading in the SNP count tables for each MAG
 SNP_bin.G1.202 <- read.table("SNPtally/bin.G1.202.txt",  header=F,  row.names=1)
 SNP_bin.G2.126 <- read.table("SNPtally/bin.G2.126.txt",  header=F,  row.names=1)
 SNP_bin.G2.143 <- read.table("SNPtally/bin.G2.143.txt",  header=F,  row.names=1)
@@ -47,6 +65,7 @@ SNP_bin.G4.593 <- read.table("SNPtally/bin.G4.593.txt",  header=F,  row.names=1)
 SNP_bl0902.s23.ctg000345l <- read.table("SNPtally/bl0902.s23.ctg000345l.txt",  header=F,  row.names=1)
 SNP_bl0908.s1032.ctg001132l <- read.table("SNPtally/bl0908.s1032.ctg001132l.txt",  header=F,  row.names=1)
 
+# The sample lables are turned into rownames
 SNP_bin.G1.202$sample <- row.names(SNP_bin.G1.202)
 SNP_bin.G2.126$sample <- row.names(SNP_bin.G2.126)
 SNP_bin.G2.143$sample <- row.names(SNP_bin.G2.143)
@@ -55,10 +74,10 @@ SNP_bin.G4.593$sample <- row.names(SNP_bin.G4.593)
 SNP_bl0902.s23.ctg000345l$sample <- row.names(SNP_bl0902.s23.ctg000345l)
 SNP_bl0908.s1032.ctg001132l$sample <- row.names(SNP_bl0908.s1032.ctg001132l)
 
-
+# creating a list that contains all of the SNP count tables
 anvio <- list(SNP_bin.G1.202,SNP_bin.G2.126,SNP_bin.G2.143,SNP_bin.G3.122,SNP_bin.G4.593,SNP_bl0902.s23.ctg000345l,SNP_bl0908.s1032.ctg001132l)
 
-
+# Creating a list that contains the names of all of the mags that will be worked on. This list is used to create variable names for the various plots that I will be creating for each mag
 magnames <-c("bin.G1.202","bin.G2.126","bin.G2.143","bin.G3.122","bin.G4.593","bl0902.s23.ctg000345l","bl0908.s1032.ctg001132l")
 
 colnames(as.data.frame(anvio[1]))
@@ -66,11 +85,86 @@ colnames(as.data.frame(anvio[1]))
 ```
 
 
-```{r cluster}
-runthrough = 1
 
+
+
+```{r Metadata}
+# loading in the table containing the metagenome sizes in Gbp
+metagenomeGB <- read.table("../bbmo_MAG_abundance/BBMO.v3_metag_size_Gb.tsv", header = TRUE, sep = "\t")
+# loading in the table of metadata for all of the samples
+metadata <- read.xlsx("main_databaseMOSTREIGBLANES_juuny21_corregit.xlsx")
+# The header, and a few of the leading columns of the xlsx file contains blank space and useless info (for my purposes) this is trimmed. For a review of the original table see "../bbmo_MAG_abundance/BBMO.v3_metag_size_Gb.tsv"
+metadata <- metadata[4:339,]
+metadata <- metadata[-c(1,3)]
+colnames(metadata) <- metadata[1,]
+metadata <- metadata[2:339,]
+
+# I want to pull out only the samples that are part of the 12 year time series that I am stidyng. For this purpose. I therefor save a list of all of the sample names that have been used in two types of foratting (the xlsx file switches formatting) 
+include <- rownames(metagenomeGB)
+include <- gsub("BL","BL_",include)
+include <- append(include, rownames(metagenomeGB))
+
+# some of the sampling dates and metadata dont align perfectly. THere are only 8 of them so I went through the list manually to see if there are any samples that are close in time, and used those. (these are indicated in the "different_day" variable)
+# missing actually there (These were not taken on the exact same Day)
+#19 (6,2)  ("BL190612","BL190219")
+#16 (4)  ("BL160406")
+#13 (12,7) ("BL_131203", "BL_130713")
+#12 (5)  ("BL_120511")
+#11 (7,4)  ("BL_110705","BL_110413")
+different_day <- c("BL_110705","BL_110413","BL_120511","BL_131203", "BL_130713","BL160406","BL190612","BL190219")
+
+# I will now include the list of extra days to the samples that I have to look for 
+include <- append(include, different_day)
+# I discard all of the sampling dates prior to 2009 
+metadata <- metadata[ (as.integer(metadata$Decimal) > 2008), ]
+filtered_metadata <- metadata[metadata$"NOM MOSTRA" %in% include, ]
+
+# To begin with I thought that some of the variables that will be of interest are those listed in the subset select. These are the ones I will initially work with more can be added later. 
+filtered_metadata <- subset(filtered_metadata, select=c("NOM MOSTRA","[PO4]", "Temp", "[NO2]","[NH4]","[SI]" ))
+# values are characters and need to be converted to numeric
+filtered_metadata$"[PO4]" <- as.numeric(filtered_metadata$"[PO4]")
+filtered_metadata$"Temp" <- as.numeric(filtered_metadata$"Temp")
+filtered_metadata$"[NO2]" <- as.numeric(filtered_metadata$"[NO2]")
+filtered_metadata$"[NH4]" <- as.numeric(filtered_metadata$"[NH4]")
+filtered_metadata$"[SI]" <- as.numeric(filtered_metadata$"[SI]")
+
+##
+## Replacing the missing values with the average across 12 years
+##
+
+filtered_metadata$"[PO4]"[is.na(filtered_metadata$"[PO4]")] <- mean(filtered_metadata$"[PO4]", na.rm = TRUE)
+filtered_metadata$"Temp"[is.na(filtered_metadata$"Temp")] <- mean(filtered_metadata$"Temp", na.rm = TRUE)
+filtered_metadata$"[NO2]"[is.na(filtered_metadata$"[NO2]")] <- mean(filtered_metadata$"[NO2]", na.rm = TRUE)
+filtered_metadata$"[NH4]"[is.na(filtered_metadata$"[NH4]")] <- mean(filtered_metadata$"[NH4]", na.rm = TRUE)
+filtered_metadata$"[SI]"[is.na(filtered_metadata$"[SI]")] <- mean(filtered_metadata$"[SI]", na.rm = TRUE)
+# I standardize the sample name formatting to contain an underscore after BL
+filtered_metadata$`NOM MOSTRA` <- str_replace(filtered_metadata$`NOM MOSTRA`, "BL1","BL_1")
+filtered_metadata$`NOM MOSTRA` <- str_replace(filtered_metadata$`NOM MOSTRA`, "BL2","BL_2")
+
+# rownames are set to the sampling lables
+rownames(filtered_metadata) <- filtered_metadata$`NOM MOSTRA`
+
+# the different day markers are set to match the sampling label formatting 
+different_day <- c("BL_110705","BL_110413","BL_120511","BL_131203", "BL_130713","BL_160406","BL_190612","BL_190219")
+
+
+```
+
+
+
+
+```{r cluster}
+### In this chunk I create all of the plots that will be displayed
+
+# setting a controll variable to cycle through the various MAGS runthrough will be used to grab indeces from the lists that I created previously
+runthrough = 1
 for (mag in pogenom){
   
+  #####
+  ##### FST distance dendrogram
+  #####
+  
+  # if the distance matrix contains an NA it is reflection that there were 0 SNPs called for the corresponding metagenomes. In order to be able to process the matrix NAs cannot be present. I chose to substitute these with an Fst distance of 0. 0 represents complete mingling (no seperation of populations), since no polymorphisms were found I will say that the populations are one. 
   mag[is.na(mag)] <- 0
   
   mag <- as.matrix(mag)
@@ -79,15 +173,17 @@ for (mag in pogenom){
   
   dend <- as.dendrogram(hclust(as.dist(mag)), cex = 0.2)
   
+  # function that finds out if a value is in the range of a given lower and upper bound (min, max)
   inRange <- function (x, min, max) {
       return ((x-min)*(x-max) <= 0);
   }
+  # a function to color the labels of the dendrogram according to season
   labelCol <- function(x) {
     if (is.leaf(x)) {
       ## fetch label
       label <- attr(x, "label") 
       month <- as.integer(substr(label, start = 6, stop = 7))
-      ## set label color to red for A and B, to blue otherwise
+      ## set label colors to depend on the month they were collected at (red=summer, yellow=fall,  green=spring, blue=winter)
       attr(x, "nodePar") <- list(lab.col=ifelse(inRange(month, 6, 8), "red", ifelse(inRange(month, 9, 11), "yellow",ifelse(inRange(month, 3, 5), "green","blue"))))
     }
     return(x)
@@ -95,21 +191,30 @@ for (mag in pogenom){
   labels(dend) <- substr(labels(dend), start = 1, stop = 9)
   d <- dendrapply(dend, labelCol)
   ggd1 <- as.ggdend(d)
+  # the dendrogram is created
   g1 <- ggplot(ggd1, horiz = TRUE, theme = NULL) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  panel.background = element_blank(), axis.line = element_line(colour = "black"))
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(y="FST distance", x = magnames[runthrough])
   
+  # the plot is saved as a variabel with the format of "(the mag name of the current run)_g1"
   nam <- paste(magnames[runthrough], "_g1", sep = "")
   assign(nam, g1)
 
+  #####
+  #####  SNP Count
+  #####
+  
+  ## Working on reordering the SNP counts to fit the dendrogram leafs. I want to be able to set the two pots side by side (flipped) and have each row represent a sing metagenome throughout all of the plots. 
+  # turning the SNP table into a dataframe
   SNPtally <- as.data.frame(anvio[runthrough])
-  colnames(SNPtally) <- "count"
-  
+  colnames(SNPtally) <- "SNPcount"
   number = 1
-  
   N <- 140
-  new_order = data.frame(sample = character(N), count = numeric(N))
-  colnames(new_order) <- c("sample", "count")
+  # the new_order variable contains a temporarily empty data frame that will be filled up with the data in the SNP tabel (in the dendrogram matching orders)
+  new_order = data.frame(sample = character(N), SNPcount = numeric(N))
+  colnames(new_order) <- c("sample", "SNPcount")
   number <- 1
+  # the following loop will save all of the data in the SNP table to the new dataframe, but in the same order as that of the dendrogram created above. 
   for(sample in labels(dend)){
     new_order[number,1] <- sample
     new_order[number,2] <- SNPtally[sample,1]
@@ -118,9 +223,9 @@ for (mag in pogenom){
   row.names(new_order) <- new_order$sample
   new_order$sample <- factor(new_order$sample, levels = new_order$sample)
   
-  
-  g2 <- ggplot(new_order, aes(x =sample, y=count)) +
-    geom_bar(,stat="identity", position ="dodge") + 
+  ## creating a graph of the SNP counts 
+  g2 <- ggplot(new_order, aes(x =sample, y=SNPcount)) +
+    geom_bar(stat="identity", position ="dodge") + 
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
   panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
           axis.text.y=element_blank(),
@@ -129,22 +234,585 @@ for (mag in pogenom){
   
   nam <- paste(magnames[runthrough], "_g2", sep = "")
   assign(nam, g2)
+  
+  
+  #####
+  ##### RPKG
+  #####
+  
+  RPKG <- as.data.frame(RPKGlist[runthrough])
+  RPKG$date <- str_replace(as.character(RPKG$date), "20", "BL_")
+  RPKG$date <- str_replace_all(RPKG$date, "-","")
+  rownames(RPKG) <- RPKG[,1]
+  RPKG <- RPKG[-c(1)]
+  
+  number = 1
+  N <- 140
+  new_order = data.frame(sample = character(N), RPKGvalue = numeric(N))
+  colnames(new_order) <- c("sample", "RPKGvalue")
+  number <- 1
+  for(sample in labels(dend)){
+    new_order[number,1] <- sample
+    new_order[number,2] <- RPKG[sample,1]
+    number = number + 1 
+  }
+  row.names(new_order) <- new_order$sample
+  new_order$sample <- factor(new_order$sample, levels = new_order$sample)
+  
+  g3 <- ggplot(new_order, aes(x =sample, y=RPKGvalue)) +
+    geom_bar(stat="identity", position ="dodge") + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+ 
+    coord_flip()
+  
+  nam <- paste(magnames[runthrough], "_g3", sep = "")
+  assign(nam, g3)
+  
+  
+  #####
+  ##### NH4
+  #####
+  
+  NH4 <- as.data.frame(filtered_metadata$"[NH4]")
+  rownames(NH4) <- rownames(filtered_metadata)
+  colnames(NH4) <- c("[NH4]")
+  
+  number = 1
+  N <- 140
+  new_order = data.frame(sample = character(N), NH4 = numeric(N))
+  colnames(new_order) <- c("sample", "[NH4]")
+  number <- 1
+  ### check if the year and month match sample in df "different_day" and if it does use that sample name
+  for(sample in labels(dend)){
+    new_order[number,1] <- sample
+    if (!(sample %in% rownames(NH4))){
+      regex <- paste(substr(sample, 1, 7) , "..",sep = "")
+      same_month <- str_extract(different_day, paste0(regex))
+      same_month <- same_month[!is.na(same_month)]
+      new_order[number,2] <- NH4[same_month,1]
+    }
+    else{
+     new_order[number,2] <- NH4[sample,1] 
+    }
+    number = number + 1 
+  }
+  row.names(new_order) <- new_order$sample
+  new_order$sample <- factor(new_order$sample, levels = new_order$sample)
+  
+   g4 <- ggplot(new_order, aes(x =sample, y=`[NH4]`)) +
+    geom_bar(stat="identity", position ="dodge") + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+ 
+    coord_flip()
+  
+  nam <- paste(magnames[runthrough], "_g4", sep = "")
+  assign(nam, g4)
+  
+  
+  #####
+  ##### Temp
+  #####
+  
+  Temp <- as.data.frame(filtered_metadata$"Temp")
+  rownames(Temp) <- rownames(filtered_metadata)
+  colnames(Temp) <- c("Temp")
+  
+  number = 1
+  N <- 140
+  new_order = data.frame(sample = character(N), Temp = numeric(N))
+  colnames(new_order) <- c("sample", "Temp")
+  number <- 1
+  ### check if the year and month match sample in df "different_day" and if it does use that sample name
+  for(sample in labels(dend)){
+    new_order[number,1] <- sample
+    if (!(sample %in% rownames(Temp))){
+      regex <- paste(substr(sample, 1, 7) , "..",sep = "")
+      same_month <- str_extract(different_day, paste0(regex))
+      same_month <- same_month[!is.na(same_month)]
+      new_order[number,2] <- Temp[same_month,1]
+    }
+    else{
+     new_order[number,2] <- Temp[sample,1] 
+    }
+    number = number + 1 
+  }
+  row.names(new_order) <- new_order$sample
+  new_order$sample <- factor(new_order$sample, levels = new_order$sample)
+  
+   g5 <- ggplot(new_order, aes(x =sample, y=`Temp`)) +
+    geom_bar(stat="identity", position ="dodge") + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+ 
+    coord_flip()
+  
+  nam <- paste(magnames[runthrough], "_g5", sep = "")
+  assign(nam, g5) 
+  
+  
+  
   runthrough = runthrough + 1
+  
+  
 }
 
 ```
 
 ```{r}
 
+grid.arrange(bin.G1.202_g1, bin.G1.202_g2, bin.G1.202_g3,bin.G1.202_g4,bin.G1.202_g5, ncol=5)
+grid.arrange(bin.G2.126_g1, bin.G2.126_g2, bin.G2.126_g3,bin.G2.126_g4,bin.G2.126_g5, ncol=5)
+grid.arrange(bin.G2.143_g1, bin.G2.143_g2, bin.G2.143_g3,bin.G2.143_g4,bin.G2.143_g5, ncol=5)
+grid.arrange(bin.G3.122_g1, bin.G3.122_g2, bin.G3.122_g3,bin.G3.122_g4,bin.G3.122_g5, ncol=5)
+grid.arrange(bin.G4.593_g1, bin.G4.593_g2, bin.G4.593_g3,bin.G4.593_g4,bin.G4.593_g5, ncol=5)
+grid.arrange(bl0902.s23.ctg000345l_g1, bl0902.s23.ctg000345l_g2, bl0902.s23.ctg000345l_g3,bl0902.s23.ctg000345l_g4,bl0902.s23.ctg000345l_g5, ncol=5)
+grid.arrange(bl0908.s1032.ctg001132l_g1, bl0908.s1032.ctg001132l_g2, bl0908.s1032.ctg001132l_g3,bl0908.s1032.ctg001132l_g4,bl0908.s1032.ctg001132l_g5, ncol=5)
 
-grid.arrange(bin.G1.202_g1, bin.G1.202_g2, ncol=2)
-grid.arrange(bin.G2.126_g1, bin.G2.126_g2, ncol=2)
-grid.arrange(bin.G2.143_g1, bin.G2.143_g2, ncol=2)
-grid.arrange(bin.G3.122_g1, bin.G3.122_g2, ncol=2)
-grid.arrange(bin.G4.593_g1, bin.G4.593_g2, ncol=2)
-grid.arrange(bl0902.s23.ctg000345l_g1, bl0902.s23.ctg000345l_g2, ncol=2)
-grid.arrange(bl0908.s1032.ctg001132l_g1, bl0908.s1032.ctg001132l_g2, ncol=2)
+```
 
+RUNNING the next few mags
+
+
+
+bl0908.s96.ctg000111c
+bl0908.s7.ctg000199l
+bl0908.s249.ctg000277l
+bl0908.s156.ctg000177l
+bl0908.s131.ctg000151c
+bl0902.s35.ctg000041c
+bl0902.s111.ctg000126c
+bin.G4.372
+bin.G3.87
+bin.G3.6
+bin.G2.65
+bin.G1.649
+
+
+
+
+
+
+loading in the fst distance matrices
+```{r FST2}
+
+## Loading in the fst disance matrices
+bl0908.s96.ctg000111c <- read.table("../bbmo_Fst/vcf_files/bl0908.s96.ctg000111c.fst.txt",  header=T,  row.names=1)
+bl0908.s7.ctg000199l <- read.table("../bbmo_Fst/vcf_files/bl0908.s7.ctg000199l.fst.txt",  header=T,  row.names=1)
+bl0908.s249.ctg000277l <- read.table("../bbmo_Fst/vcf_files/bl0908.s249.ctg000277l.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bl0908.s156.ctg000177l <- read.table("../bbmo_Fst/vcf_files/bl0908.s156.ctg000177l.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bl0908.s131.ctg000151c <- read.table("../bbmo_Fst/vcf_files/bl0908.s131.ctg000151c.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bl0902.s35.ctg000041c <- read.table("../bbmo_Fst/vcf_files/bl0902.s35.ctg000041c.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bl0902.s111.ctg000126c <- read.table("../bbmo_Fst/vcf_files/bl0902.s111.ctg000126c.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G4.372 <- read.table("../bbmo_Fst/vcf_files/bin.G4.372.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G3.87 <- read.table("../bbmo_Fst/vcf_files/bin.G3.87.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G3.6 <- read.table("../bbmo_Fst/vcf_files/bin.G3.6.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G2.65 <- read.table("../bbmo_Fst/vcf_files/bin.G2.65.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+bin.G1.649 <- read.table("../bbmo_Fst/vcf_files/bin.G1.649.95id.c10.s4.fst.txt",  header=T,  row.names=1)
+
+# creating a list of all of the fst distance matrices
+pogenom <- list(bl0908.s96.ctg000111c, bl0908.s7.ctg000199l, bl0908.s249.ctg000277l, bl0908.s156.ctg000177l, bl0908.s131.ctg000151c, bl0902.s35.ctg000041c, bl0902.s111.ctg000126c, bin.G4.372, bin.G3.87, bin.G3.6, bin.G2.65, bin.G1.649)
+
+
+# loading in the RPKG tabels calculated in the "bbmo_MAG_abundance/batch.mag.abundance.Rmd" file
+bl0908.s96.ctg000111c_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0908.s96.ctg000111c_RPKG.csv") 
+bl0908.s7.ctg000199l_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0908.s7.ctg000199l_RPKG.csv")
+bl0908.s249.ctg000277l_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0908.s249.ctg000277l_RPKG.csv")
+bl0908.s156.ctg000177l_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0908.s156.ctg000177l_RPKG.csv")
+bl0908.s131.ctg000151c_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0908.s131.ctg000151c_RPKG.csv")
+bl0902.s35.ctg000041c_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0902.s35.ctg000041c_RPKG.csv")
+bl0902.s111.ctg000126c_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bl0902.s111.ctg000126c_RPKG.csv")
+bin.G4.372_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G4.372_RPKG.csv")
+bin.G3.87_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G3.87_RPKG.csv")
+bin.G3.6_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G3.6_RPKG.csv")
+bin.G2.65_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G2.65_RPKG.csv")
+bin.G1.649_RPKG <- read.csv("~/Documents/Masters_Upf/ICM/bbmo_MAG_abundance/RPKG/bin.G1.649_RPKG.csv")
+
+
+
+
+
+
+# creating a list containing all of the RPKG tables
+RPKGlist <-list(bl0908.s96.ctg000111c_RPKG, bl0908.s7.ctg000199l_RPKG, bl0908.s249.ctg000277l_RPKG, bl0908.s156.ctg000177l_RPKG, bl0908.s131.ctg000151c_RPKG, bl0902.s35.ctg000041c_RPKG, bl0902.s111.ctg000126c_RPKG, bin.G4.372_RPKG, bin.G3.87_RPKG, bin.G3.6_RPKG, bin.G2.65_RPKG, bin.G1.649_RPKG)
+
+```
+
+
+bl0908.s96.ctg000111c
+bl0908.s7.ctg000199l
+bl0908.s249.ctg000277l
+bl0908.s156.ctg000177l
+bl0908.s131.ctg000151c
+bl0902.s35.ctg000041c
+bl0902.s111.ctg000126c
+bin.G4.372
+bin.G3.87
+bin.G3.6
+bin.G2.65
+bin.G1.649
+
+
+
+```{r SNP2}
+
+# Loading in the SNP count tables for each MAG
+
+SNP_bl0908.s96.ctg000111c <- read.table("SNPtally/bl0908.s96.ctg000111c.txt",  header=F,  row.names=1)
+SNP_bl0908.s7.ctg000199l <- read.table("SNPtally/bl0908.s7.ctg000199l.txt",  header=F,  row.names=1)
+SNP_bl0908.s249.ctg000277l <- read.table("SNPtally/bl0908.s249.ctg000277l.txt",  header=F,  row.names=1)
+SNP_bl0908.s156.ctg000177l <- read.table("SNPtally/bl0908.s156.ctg000177l.txt",  header=F,  row.names=1)
+SNP_bl0908.s131.ctg000151c <- read.table("SNPtally/bl0908.s131.ctg000151c.txt",  header=F,  row.names=1)
+SNP_bl0902.s35.ctg000041c <- read.table("SNPtally/bl0902.s35.ctg000041c.txt",  header=F,  row.names=1)
+SNP_bl0902.s111.ctg000126c <- read.table("SNPtally/bl0902.s111.ctg000126c.txt",  header=F,  row.names=1)
+SNP_bin.G4.372 <- read.table("SNPtally/bin.G4.372.txt",  header=F,  row.names=1)
+SNP_bin.G3.87 <- read.table("SNPtally/bin.G3.87.txt",  header=F,  row.names=1)
+SNP_bin.G3.6 <- read.table("SNPtally/bin.G3.6.txt",  header=F,  row.names=1)
+SNP_bin.G2.65 <- read.table("SNPtally/bin.G2.65.txt",  header=F,  row.names=1)
+SNP_bin.G1.649 <- read.table("SNPtally/bin.G1.649.txt",  header=F,  row.names=1)
+
+
+# The sample lables are turned into rownames
+SNP_bl0908.s96.ctg000111c$sample <- row.names(SNP_bl0908.s96.ctg000111c)
+SNP_bl0908.s7.ctg000199l$sample <- row.names(SNP_bl0908.s7.ctg000199l)
+SNP_bl0908.s249.ctg000277l$sample <- row.names(SNP_bl0908.s249.ctg000277l)
+SNP_bl0908.s156.ctg000177l$sample <- row.names(SNP_bl0908.s156.ctg000177l)
+SNP_bl0908.s131.ctg000151c$sample <- row.names(SNP_bl0908.s131.ctg000151c)
+SNP_bl0902.s35.ctg000041c$sample <- row.names(SNP_bl0902.s35.ctg000041c)
+SNP_bl0902.s111.ctg000126c$sample <- row.names(SNP_bl0902.s111.ctg000126c)
+SNP_bin.G4.372$sample <- row.names(SNP_bin.G4.372)
+SNP_bin.G3.87$sample <- row.names(SNP_bin.G3.87)
+SNP_bin.G3.6$sample <- row.names(SNP_bin.G3.6)
+SNP_bin.G2.65$sample <- row.names(SNP_bin.G2.65)
+SNP_bin.G1.649$sample <- row.names(SNP_bin.G1.649)
+
+
+# creating a list that contains all of the SNP count tables
+anvio <- list(SNP_bl0908.s96.ctg000111c, SNP_bl0908.s7.ctg000199l, SNP_bl0908.s249.ctg000277l, SNP_bl0908.s156.ctg000177l, SNP_bl0908.s131.ctg000151c, SNP_bl0902.s35.ctg000041c, SNP_bl0902.s111.ctg000126c, SNP_bin.G4.372, SNP_bin.G3.87, SNP_bin.G3.6, SNP_bin.G2.65, SNP_bin.G1.649)
+
+
+
+
+# Creating a list that contains the names of all of the mags that will be worked on. This list is used to create variable names for the various plots that I will be creating for each mag
+magnames <-c("bl0908.s96.ctg000111c", "bl0908.s7.ctg000199l", "bl0908.s249.ctg000277l", "bl0908.s156.ctg000177l", "bl0908.s131.ctg000151c", "bl0902.s35.ctg000041c", "bl0902.s111.ctg000126c", "bin.G4.372", "bin.G3.87", "bin.G3.6", "bin.G2.65", "bin.G1.649")
+
+colnames(as.data.frame(anvio[1]))
+
+```
+
+
+
+
+
+```{r Metadata2}
+# loading in the table containing the metagenome sizes in Gbp
+metagenomeGB <- read.table("../bbmo_MAG_abundance/BBMO.v3_metag_size_Gb.tsv", header = TRUE, sep = "\t")
+# loading in the table of metadata for all of the samples
+metadata <- read.xlsx("main_databaseMOSTREIGBLANES_juuny21_corregit.xlsx")
+# The header, and a few of the leading columns of the xlsx file contains blank space and useless info (for my purposes) this is trimmed. For a review of the original table see "../bbmo_MAG_abundance/BBMO.v3_metag_size_Gb.tsv"
+metadata <- metadata[4:339,]
+metadata <- metadata[-c(1,3)]
+colnames(metadata) <- metadata[1,]
+metadata <- metadata[2:339,]
+
+# I want to pull out only the samples that are part of the 12 year time series that I am stidyng. For this purpose. I therefor save a list of all of the sample names that have been used in two types of foratting (the xlsx file switches formatting) 
+include <- rownames(metagenomeGB)
+include <- gsub("BL","BL_",include)
+include <- append(include, rownames(metagenomeGB))
+
+# some of the sampling dates and metadata dont align perfectly. THere are only 8 of them so I went through the list manually to see if there are any samples that are close in time, and used those. (these are indicated in the "different_day" variable)
+# missing actually there (These were not taken on the exact same Day)
+#19 (6,2)  ("BL190612","BL190219")
+#16 (4)  ("BL160406")
+#13 (12,7) ("BL_131203", "BL_130713")
+#12 (5)  ("BL_120511")
+#11 (7,4)  ("BL_110705","BL_110413")
+different_day <- c("BL_110705","BL_110413","BL_120511","BL_131203", "BL_130713","BL160406","BL190612","BL190219")
+
+# I will now include the list of extra days to the samples that I have to look for 
+include <- append(include, different_day)
+# I discard all of the sampling dates prior to 2009 
+metadata <- metadata[ (as.integer(metadata$Decimal) > 2008), ]
+filtered_metadata <- metadata[metadata$"NOM MOSTRA" %in% include, ]
+
+# To begin with I thought that some of the variables that will be of interest are those listed in the subset select. These are the ones I will initially work with more can be added later. 
+filtered_metadata <- subset(filtered_metadata, select=c("NOM MOSTRA","[PO4]", "Temp", "[NO2]","[NH4]","[SI]" ))
+# values are characters and need to be converted to numeric
+filtered_metadata$"[PO4]" <- as.numeric(filtered_metadata$"[PO4]")
+filtered_metadata$"Temp" <- as.numeric(filtered_metadata$"Temp")
+filtered_metadata$"[NO2]" <- as.numeric(filtered_metadata$"[NO2]")
+filtered_metadata$"[NH4]" <- as.numeric(filtered_metadata$"[NH4]")
+filtered_metadata$"[SI]" <- as.numeric(filtered_metadata$"[SI]")
+
+##
+## Replacing the missing values with the average across 12 years
+##
+
+filtered_metadata$"[PO4]"[is.na(filtered_metadata$"[PO4]")] <- mean(filtered_metadata$"[PO4]", na.rm = TRUE)
+filtered_metadata$"Temp"[is.na(filtered_metadata$"Temp")] <- mean(filtered_metadata$"Temp", na.rm = TRUE)
+filtered_metadata$"[NO2]"[is.na(filtered_metadata$"[NO2]")] <- mean(filtered_metadata$"[NO2]", na.rm = TRUE)
+filtered_metadata$"[NH4]"[is.na(filtered_metadata$"[NH4]")] <- mean(filtered_metadata$"[NH4]", na.rm = TRUE)
+filtered_metadata$"[SI]"[is.na(filtered_metadata$"[SI]")] <- mean(filtered_metadata$"[SI]", na.rm = TRUE)
+# I standardize the sample name formatting to contain an underscore after BL
+filtered_metadata$`NOM MOSTRA` <- str_replace(filtered_metadata$`NOM MOSTRA`, "BL1","BL_1")
+filtered_metadata$`NOM MOSTRA` <- str_replace(filtered_metadata$`NOM MOSTRA`, "BL2","BL_2")
+
+# rownames are set to the sampling lables
+rownames(filtered_metadata) <- filtered_metadata$`NOM MOSTRA`
+
+# the different day markers are set to match the sampling label formatting 
+different_day <- c("BL_110705","BL_110413","BL_120511","BL_131203", "BL_130713","BL_160406","BL_190612","BL_190219")
 
 
 ```
+
+
+
+
+```{r cluster2}
+### In this chunk I create all of the plots that will be displayed
+
+# setting a controll variable to cycle through the various MAGS runthrough will be used to grab indeces from the lists that I created previously
+runthrough = 1
+
+for (mag in pogenom){
+  
+  #####
+  ##### FST distance dendrogram
+  #####
+  
+  # if the distance matrix contains an NA it is reflection that there were 0 SNPs called for the corresponding metagenomes. In order to be able to process the matrix NAs cannot be present. I chose to substitute these with an Fst distance of 0. 0 represents complete mingling (no seperation of populations), since no polymorphisms were found I will say that the populations are one. 
+  mag[is.na(mag)] <- 0
+  
+  mag <- as.matrix(mag)
+  
+  diag(mag) <- NA
+  
+  dend <- as.dendrogram(hclust(as.dist(mag)), cex = 0.2)
+  
+  # function that finds out if a value is in the range of a given lower and upper bound (min, max)
+  inRange <- function (x, min, max) {
+      return ((x-min)*(x-max) <= 0);
+  }
+  # a function to color the labels of the dendrogram according to season
+  labelCol <- function(x) {
+    if (is.leaf(x)) {
+      ## fetch label
+      label <- attr(x, "label") 
+      month <- as.integer(substr(label, start = 6, stop = 7))
+      ## set label colors to depend on the month they were collected at (red=summer, yellow=fall,  green=spring, blue=winter)
+      attr(x, "nodePar") <- list(lab.col=ifelse(inRange(month, 6, 8), "red", ifelse(inRange(month, 9, 11), "yellow",ifelse(inRange(month, 3, 5), "green","blue"))))
+    }
+    return(x)
+  }
+  labels(dend) <- substr(labels(dend), start = 1, stop = 9)
+  d <- dendrapply(dend, labelCol)
+  ggd1 <- as.ggdend(d)
+  # the dendrogram is created
+  g1 <- ggplot(ggd1, horiz = TRUE, theme = NULL) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(y="FST distance", x = magnames[runthrough])
+  
+  # the plot is saved as a variabel with the format of "(the mag name of the current run)_g1"
+  nam <- paste(magnames[runthrough], "_g1", sep = "")
+  assign(nam, g1)
+
+  #####
+  #####  SNP Count
+  #####
+  
+  ## Working on reordering the SNP counts to fit the dendrogram leafs. I want to be able to set the two pots side by side (flipped) and have each row represent a sing metagenome throughout all of the plots. 
+  # turning the SNP table into a dataframe
+  SNPtally <- as.data.frame(anvio[runthrough])
+  colnames(SNPtally) <- "SNPcount"
+  number = 1
+  N <- 140
+  # the new_order variable contains a temporarily empty data frame that will be filled up with the data in the SNP tabel (in the dendrogram matching orders)
+  new_order = data.frame(sample = character(N), SNPcount = numeric(N))
+  colnames(new_order) <- c("sample", "SNPcount")
+  number <- 1
+  # the following loop will save all of the data in the SNP table to the new dataframe, but in the same order as that of the dendrogram created above. 
+  for(sample in labels(dend)){
+    new_order[number,1] <- sample
+    new_order[number,2] <- SNPtally[sample,1]
+    number = number + 1 
+  }
+  row.names(new_order) <- new_order$sample
+  new_order$sample <- factor(new_order$sample, levels = new_order$sample)
+  
+  ## creating a graph of the SNP counts 
+  g2 <- ggplot(new_order, aes(x =sample, y=SNPcount)) +
+    geom_bar(stat="identity", position ="dodge") + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+ 
+    coord_flip()
+  
+  nam <- paste(magnames[runthrough], "_g2", sep = "")
+  assign(nam, g2)
+  
+  
+  #####
+  ##### RPKG
+  #####
+  
+  RPKG <- as.data.frame(RPKGlist[runthrough])
+  RPKG$date <- str_replace(as.character(RPKG$date), "20", "BL_")
+  RPKG$date <- str_replace_all(RPKG$date, "-","")
+  rownames(RPKG) <- RPKG[,1]
+  RPKG <- RPKG[-c(1)]
+  
+  number = 1
+  N <- 140
+  new_order = data.frame(sample = character(N), RPKGvalue = numeric(N))
+  colnames(new_order) <- c("sample", "RPKGvalue")
+  number <- 1
+  for(sample in labels(dend)){
+    new_order[number,1] <- sample
+    new_order[number,2] <- RPKG[sample,1]
+    number = number + 1 
+  }
+  row.names(new_order) <- new_order$sample
+  new_order$sample <- factor(new_order$sample, levels = new_order$sample)
+  
+  g3 <- ggplot(new_order, aes(x =sample, y=RPKGvalue)) +
+    geom_bar(stat="identity", position ="dodge") + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+ 
+    coord_flip()
+  
+  nam <- paste(magnames[runthrough], "_g3", sep = "")
+  assign(nam, g3)
+  
+  
+  #####
+  ##### NH4
+  #####
+  
+  NH4 <- as.data.frame(filtered_metadata$"[NH4]")
+  rownames(NH4) <- rownames(filtered_metadata)
+  colnames(NH4) <- c("[NH4]")
+  
+  number = 1
+  N <- 140
+  new_order = data.frame(sample = character(N), NH4 = numeric(N))
+  colnames(new_order) <- c("sample", "[NH4]")
+  number <- 1
+  ### check if the year and month match sample in df "different_day" and if it does use that sample name
+  for(sample in labels(dend)){
+    new_order[number,1] <- sample
+    if (!(sample %in% rownames(NH4))){
+      regex <- paste(substr(sample, 1, 7) , "..",sep = "")
+      same_month <- str_extract(different_day, paste0(regex))
+      same_month <- same_month[!is.na(same_month)]
+      new_order[number,2] <- NH4[same_month,1]
+    }
+    else{
+     new_order[number,2] <- NH4[sample,1] 
+    }
+    number = number + 1 
+  }
+  row.names(new_order) <- new_order$sample
+  new_order$sample <- factor(new_order$sample, levels = new_order$sample)
+  
+   g4 <- ggplot(new_order, aes(x =sample, y=`[NH4]`)) +
+    geom_bar(stat="identity", position ="dodge") + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+ 
+    coord_flip()
+  
+  nam <- paste(magnames[runthrough], "_g4", sep = "")
+  assign(nam, g4)
+  
+  
+  #####
+  ##### Temp
+  #####
+  
+  Temp <- as.data.frame(filtered_metadata$"Temp")
+  rownames(Temp) <- rownames(filtered_metadata)
+  colnames(Temp) <- c("Temp")
+  
+  number = 1
+  N <- 140
+  new_order = data.frame(sample = character(N), Temp = numeric(N))
+  colnames(new_order) <- c("sample", "Temp")
+  number <- 1
+  ### check if the year and month match sample in df "different_day" and if it does use that sample name
+  for(sample in labels(dend)){
+    new_order[number,1] <- sample
+    if (!(sample %in% rownames(Temp))){
+      regex <- paste(substr(sample, 1, 7) , "..",sep = "")
+      same_month <- str_extract(different_day, paste0(regex))
+      same_month <- same_month[!is.na(same_month)]
+      new_order[number,2] <- Temp[same_month,1]
+    }
+    else{
+     new_order[number,2] <- Temp[sample,1] 
+    }
+    number = number + 1 
+  }
+  row.names(new_order) <- new_order$sample
+  new_order$sample <- factor(new_order$sample, levels = new_order$sample)
+  
+   g5 <- ggplot(new_order, aes(x =sample, y=`Temp`)) +
+    geom_bar(stat="identity", position ="dodge") + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black"),axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+ 
+    coord_flip()
+  
+  nam <- paste(magnames[runthrough], "_g5", sep = "")
+  assign(nam, g5) 
+  
+  
+  
+  runthrough = runthrough + 1
+  
+  
+}
+
+
+
+
+
+grid.arrange(bl0908.s96.ctg000111c_g1, bl0908.s96.ctg000111c_g2, bl0908.s96.ctg000111c_g3,bl0908.s96.ctg000111c_g4,bl0908.s96.ctg000111c_g5, ncol=5)
+
+grid.arrange(bl0908.s7.ctg000199l_g1, bl0908.s7.ctg000199l_g2, bl0908.s7.ctg000199l_g3,bl0908.s7.ctg000199l_g4,bl0908.s7.ctg000199l_g5, ncol=5)
+
+grid.arrange(bl0908.s249.ctg000277l_g1, bl0908.s249.ctg000277l_g2, bl0908.s249.ctg000277l_g3,bl0908.s249.ctg000277l_g4,bl0908.s249.ctg000277l_g5, ncol=5)
+
+grid.arrange(bl0908.s156.ctg000177l_g1, bl0908.s156.ctg000177l_g2, bl0908.s156.ctg000177l_g3,bl0908.s156.ctg000177l_g4,bl0908.s156.ctg000177l_g5, ncol=5)
+
+grid.arrange(bl0908.s131.ctg000151c_g1, bl0908.s131.ctg000151c_g2, bl0908.s131.ctg000151c_g3,bl0908.s131.ctg000151c_g4,bl0908.s131.ctg000151c_g5, ncol=5)
+
+grid.arrange(bl0902.s35.ctg000041c_g1, bl0902.s35.ctg000041c_g2, bl0902.s35.ctg000041c_g3,bl0902.s35.ctg000041c_g4,bl0902.s35.ctg000041c_g5, ncol=5)
+
+grid.arrange(bl0902.s111.ctg000126c_g1, bl0902.s111.ctg000126c_g2, bl0902.s111.ctg000126c_g3,bl0902.s111.ctg000126c_g4,bl0902.s111.ctg000126c_g5, ncol=5)
+
+grid.arrange(bin.G4.372_g1, bin.G4.372_g2, bin.G4.372_g3,bin.G4.372_g4,bin.G4.372_g5, ncol=5)
+
+grid.arrange(bin.G3.87_g1, bin.G3.87_g2, bin.G3.87_g3,bin.G3.87_g4,bin.G3.87_g5, ncol=5)
+
+grid.arrange(bin.G3.6_g1, bin.G3.6_g2, bin.G3.6_g3,bin.G3.6_g4,bin.G3.6_g5, ncol=5)
+
+grid.arrange(bin.G2.65_g1, bin.G2.65_g2, bin.G2.65_g3,bin.G2.65_g4,bin.G2.65_g5, ncol=5)
+
+grid.arrange(bin.G1.649_g1, bin.G1.649_g2, bin.G1.649_g3,bin.G1.649_g4,bin.G1.649_g5, ncol=5)
+
+```
+
+
+
+
+
